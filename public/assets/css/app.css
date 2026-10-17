@@ -238,16 +238,7 @@ main { flex: 1; padding-block: 112px 64px; }
 @keyframes nav-in { from { opacity: 0; translate: -50% -24px; filter: blur(6px); } }
 .nav__brand { display: flex; align-items: center; gap: 10px; font-weight: 620; letter-spacing: -0.02em; font-size: 16px; margin-right: auto; min-width: 0; }
 .nav__brand span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.nav__brand img { height: 26px; width: auto; border-radius: 6px; }
-.brand-mark {
-  width: 26px; height: 26px; flex: none;
-  border-radius: 8px;
-  background: conic-gradient(from var(--spin), var(--accent), color-mix(in oklab, var(--accent) 30%, #fff), var(--accent));
-  animation: spin 8s linear infinite;
-  box-shadow: 0 0 0 1px rgb(255 255 255 / .2) inset, 0 4px 14px -4px color-mix(in oklab, var(--accent) 70%, transparent);
-  position: relative;
-}
-.brand-mark::after { content: ''; position: absolute; inset: 7px; border-radius: 3px; background: var(--bg); opacity: .9; }
+.nav__brand img { height: 30px; width: auto; }
 @keyframes spin { to { --spin: 360deg; } }
 
 .nav__links { display: flex; gap: 2px; }
@@ -656,6 +647,7 @@ main { flex: 1; padding-block: 112px 64px; }
 .auth-card__head { display: flex; flex-direction: column; gap: 10px; }
 
 .setup { width: min(620px, 100%); padding: 0; overflow: hidden; animation: card-in .9s var(--ease) both; }
+.setup__logo { width: 64px; height: 64px; filter: drop-shadow(0 10px 24px color-mix(in oklab, var(--accent) 25%, transparent)); animation: float 5s ease-in-out infinite; }
 .setup__progress { display: flex; gap: 6px; padding: 22px 30px 0; }
 .setup__progress i { flex: 1; height: 4px; border-radius: 99px; background: var(--field-hover); overflow: hidden; position: relative; }
 .setup__progress i::after { content: ''; position: absolute; inset: 0; background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform .7s var(--ease); }

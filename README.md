@@ -1,3 +1,5 @@
+<img src="public/assets/brand/logo.webp" alt="" width="88" align="left">
+
 # ShareHost
 
 **Open-source, self-hosted file sharing with a clean glass interface.**

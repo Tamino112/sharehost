@@ -320,9 +320,7 @@ function renderNav(active) {
   const { config } = state;
   const s = config.settings;
   const user = config.user;
-  const brand = s.logo
-    ? `<img src="${esc(s.logo)}" alt="">`
-    : '<span class="brand-mark" aria-hidden="true"></span>';
+  const brand = `<img src="${esc(s.logo || '/assets/brand/logo-128.webp')}" alt="">`;
   const link = (href, key, name) => `<a class="nav__link" href="${href}" ${active === name ? 'aria-current="page"' : ''} data-i18n="${key}"></a>`;
   const nav = h(`<nav class="nav glass" data-glow>
     <a class="nav__brand" href="/">${brand}<span>${esc(s.siteName)}</span></a>
