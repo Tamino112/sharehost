@@ -285,6 +285,8 @@ function settingRow(key, def) {
   return row;
 }
 
+const PRESETS = ['glass', 'aurora'];
+
 function mediaPanel() {
   const slots = [
     ['backgroundImage', 'image/jpeg,image/png,image/webp,image/avif', 'image'],
@@ -308,12 +310,15 @@ function mediaPanel() {
           <label class="btn btn--sm">${icon('upload')}<span>${esc(t('admin.uploadFile'))}</span><input type="file" accept="${accept}" hidden></label>
           <button class="btn btn--ghost btn--sm btn--danger" data-act="remove">${icon('trash')}<span>${esc(t('common.remove'))}</span></button>
         </div>
+        ${slot === 'backgroundImage' ? `<div class="row" style="--gap:8px"><span class="hint">${esc(t('admin.presets'))}</span>
+          ${PRESETS.map(p => `<button type="button" class="preset" data-preset="${p}" style="background-image:url(/assets/backgrounds/${p}.webp)" title="${esc(t(`admin.preset.${p}`))}" aria-label="${esc(t(`admin.preset.${p}`))}"></button>`).join('')}</div>` : ''}
       </div>
     </div>`);
     const paint = () => {
       const url = store.values[slot];
       const preview = $('.media-slot__preview', row);
       $('[data-act="remove"]', row).hidden = !url;
+      for (const b of $$('[data-preset]', row)) b.setAttribute('aria-pressed', String(url === `/assets/backgrounds/${b.dataset.preset}.webp`));
       if (!url) { preview.innerHTML = icon(kind); return; }
       const el = kind === 'video' ? h('<video muted loop autoplay playsinline></video>') : h('<img alt="">');
       el.src = url;
@@ -321,6 +326,21 @@ function mediaPanel() {
     };
     paint();
     const btn = $('label.btn', row);
+    const applied = url => {
+      store.values[slot] = url;
+      state.config.settings[slot] = url;
+      paint();
+      applyAppearance({ ...store.values, ...store.pending });
+      if (slot === 'backgroundImage' || slot === 'backgroundVideo') suggestMode(slot === 'backgroundImage' ? 'image' : 'video');
+    };
+    row.addEventListener('click', async e => {
+      const preset = e.target.closest('[data-preset]')?.dataset.preset;
+      if (!preset) return;
+      try {
+        const { url } = await api('/api/admin/branding/backgroundImage/preset', { method: 'POST', body: { name: preset } });
+        applied(url);
+      } catch (err) { toast(err.message, 'error'); }
+    });
     $('input', row).addEventListener('change', async e => {
       const file = e.target.files[0];
       e.target.value = '';
@@ -330,12 +350,8 @@ function mediaPanel() {
       btn.classList.add('is-loading');
       try {
         const { url } = await api(`/api/admin/branding/${slot}`, { method: 'POST', body });
-        store.values[slot] = url;
-        state.config.settings[slot] = url;
-        paint();
-        applyAppearance({ ...store.values, ...store.pending });
+        applied(url);
         toast(t('admin.uploaded'));
-        if (slot === 'backgroundImage' || slot === 'backgroundVideo') suggestMode(slot === 'backgroundImage' ? 'image' : 'video');
       } catch (err) {
         toast(err.message, 'error');
       } finally {

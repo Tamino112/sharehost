@@ -118,6 +118,18 @@ router.post('/api/admin/branding/:slot', (req, res, next) => {
   });
 });
 
+// Background images that ship with ShareHost (public/assets/backgrounds).
+const BACKGROUND_PRESETS = ['glass', 'aurora'];
+
+router.post('/api/admin/branding/backgroundImage/preset', async (req, res) => {
+  const name = req.body?.name;
+  if (!BACKGROUND_PRESETS.includes(name)) throw new HttpError(404, 'Unknown preset.');
+  await removeBranding('backgroundImage');
+  const url = `/assets/backgrounds/${name}.webp`;
+  settings.setRaw('backgroundImage', url);
+  res.json({ slot: 'backgroundImage', url });
+});
+
 router.delete('/api/admin/branding/:slot', async (req, res) => {
   const slot = req.params.slot;
   if (!BRANDING[slot]) throw new HttpError(404, 'Unknown branding slot.');
