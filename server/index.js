@@ -49,7 +49,15 @@ app.use('/fonts', express.static(fontDir('geist'), { maxAge: '30d', immutable: t
 app.use('/fonts', express.static(fontDir('geist-mono'), { maxAge: '30d', immutable: true }));
 app.use('/branding', express.static(config.brandingDir, { maxAge: '7d' }));
 app.get('/s/:id', (_req, res) => res.sendFile(path.join(config.publicDir, 'share.html')));
-app.use(express.static(config.publicDir, { extensions: ['html'], index: 'index.html', maxAge: '1h' }));
+// Pages, scripts and styles are revalidated on every load (cheap 304s via ETag), so an update
+// shows up immediately. Images and fonts rarely change and may be cached for a day.
+app.use(express.static(config.publicDir, {
+  extensions: ['html'],
+  index: 'index.html',
+  setHeaders: (res, file) => {
+    res.set('Cache-Control', /\.(html|js|css)$/.test(file) ? 'no-cache' : 'public, max-age=86400');
+  },
+}));
 
 app.use((req, res) => {
   res.status(404).sendFile(path.join(config.publicDir, '404.html'));
