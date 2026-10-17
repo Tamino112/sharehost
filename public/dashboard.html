@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07080a">
+  <title>title.dashboard</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/app.css">
+  <script type="module" src="/assets/js/dashboard.js"></script>
+</head>
+<body>
+  <header id="nav"></header>
+  <main class="shell">
+    <div class="page-head">
+      <div class="stack">
+        <span class="eyebrow" data-i18n="nav.dashboard"></span>
+        <h1 class="h1" id="greeting"></h1>
+      </div>
+      <a class="btn btn--primary" href="/" id="new-btn"></a>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <section class="panel glass" data-glow style="margin-top:16px" data-reveal>
+      <div class="panel__head">
+        <h2 class="h2" data-i18n="dash.sharesTitle"></h2>
+        <span class="chip" id="share-count">0</span>
+      </div>
+      <div class="list" id="shares"></div>
+    </section>
+
+    <section class="panel glass" id="account" style="margin-top:16px" data-reveal>
+      <div class="panel__head">
+        <div class="stack" style="--gap:4px">
+          <h2 class="h2" data-i18n="dash.accountTitle"></h2>
+          <span class="muted small" id="account-meta"></span>
+        </div>
+      </div>
+      <form class="stack" id="pw-form" style="max-width:520px" novalidate>
+        <div class="stack" data-errors>
+          <div class="field">
+            <label for="pw-current" data-i18n="dash.currentPassword"></label>
+            <input class="input" id="pw-current" type="password" autocomplete="current-password" required>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label for="pw-new" data-i18n="dash.newPassword"></label>
+              <input class="input" id="pw-new" type="password" autocomplete="new-password" required>
+            </div>
+            <div class="field">
+              <label for="pw-new2" data-i18n="auth.passwordRepeat"></label>
+              <input class="input" id="pw-new2" type="password" autocomplete="new-password" required>
+            </div>
+          </div>
+        </div>
+        <div><button class="btn" type="submit" data-i18n="dash.changePassword"></button></div>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

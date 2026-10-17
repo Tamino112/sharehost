@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07080a">
+  <title>title.register</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/app.css">
+  <script type="module" src="/assets/js/auth.js"></script>
+</head>
+<body data-page="register">
+  <header id="nav"></header>
+  <main class="shell center-page">
+    <form class="auth-card glass glass--xl" data-glow id="form" novalidate>
+      <div class="auth-card__head">
+        <div class="icon-tile icon-tile--accent" data-icon="sparkle"></div>
+        <h1 class="h1" data-i18n="auth.createAccount"></h1>
+        <p class="muted" style="margin:0" data-i18n="auth.registerText"></p>
+      </div>
+      <div class="stack" data-errors id="fields">
+        <div class="field" id="invite-field" hidden>
+          <label for="invite" data-i18n="auth.inviteCode"></label>
+          <input class="input mono" id="invite" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="field">
+          <label for="username" data-i18n="auth.username"></label>
+          <input class="input" id="username" autocomplete="username" required minlength="3" maxlength="32">
+        </div>
+        <div class="field">
+          <label for="email"><span data-i18n="auth.email"></span> <span class="subtle" data-i18n="common.optional"></span></label>
+          <input class="input" id="email" type="email" autocomplete="email">
+        </div>
+        <div class="field">
+          <label for="password" data-i18n="auth.password"></label>
+          <input class="input" id="password" type="password" autocomplete="new-password" required>
+          <div class="strength" id="strength" data-score="0"><i></i><i></i><i></i><i></i></div>
+          <span class="hint" id="pw-hint"></span>
+        </div>
+      </div>
+      <button class="btn btn--primary btn--lg btn--block" type="submit" data-i18n="auth.createAccount"></button>
+      <p class="small muted" style="margin:0;text-align:center">
+        <span data-i18n="auth.haveAccount"></span> <a href="/login" style="color:var(--accent-text);font-weight:550" data-i18n="nav.signIn"></a>
+      </p>
+    </form>
+    <div class="auth-card glass glass--xl" id="closed" hidden style="text-align:center;align-items:center">
+      <div class="lock-icon" data-icon="lock"></div>
+      <h1 class="h2" data-i18n="auth.closedTitle"></h1>
+      <p class="muted" style="margin:0" data-i18n="auth.closedText"></p>
+      <a class="btn" href="/login" data-i18n="nav.signIn"></a>
+    </div>
+  </main>
+</body>
+</html>

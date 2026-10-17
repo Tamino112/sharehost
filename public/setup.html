@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07080a">
+  <title>title.setup</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/css/app.css">
+  <script type="module" src="/assets/js/setup.js"></script>
+</head>
+<body>
+  <main class="shell center-page" style="padding-block:48px">
+    <div class="setup glass glass--xl" data-glow>
+      <div class="setup__progress" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+
+      <form class="setup__body" id="setup-form" novalidate>
+        <!-- 0: welcome -->
+        <section class="setup__step is-active" data-step="0">
+          <span class="brand-mark" style="width:54px;height:54px;border-radius:17px"></span>
+          <div class="stack" style="--gap:12px">
+            <span class="eyebrow" data-i18n="setup.eyebrow"></span>
+            <h1 class="h1" data-i18n="setup.welcome"></h1>
+            <p class="lead" data-i18n="setup.welcomeText"></p>
+          </div>
+          <div class="field">
+            <span class="label" data-i18n="setup.language"></span>
+            <div class="segmented" id="lang-switch" role="group">
+              <button type="button" data-lang="en">English</button>
+              <button type="button" data-lang="de">Deutsch</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 1: admin account -->
+        <section class="setup__step" data-step="1">
+          <div class="stack" style="--gap:10px">
+            <span class="eyebrow" data-i18n="setup.step2"></span>
+            <h2 class="h1" data-i18n="setup.adminTitle"></h2>
+            <p class="muted" style="margin:0" data-i18n="setup.adminText"></p>
+          </div>
+          <div class="stack" data-errors>
+            <div class="grid-2">
+              <div class="field">
+                <label for="username" data-i18n="auth.username"></label>
+                <input class="input" id="username" autocomplete="username" required minlength="3" maxlength="32" value="admin">
+              </div>
+              <div class="field">
+                <label for="email"><span data-i18n="auth.email"></span> <span class="subtle" data-i18n="common.optional"></span></label>
+                <input class="input" id="email" type="email" autocomplete="email">
+              </div>
+            </div>
+            <div class="field">
+              <label for="password" data-i18n="auth.password"></label>
+              <input class="input" id="password" type="password" autocomplete="new-password" required>
+              <div class="strength" id="strength" data-score="0"><i></i><i></i><i></i><i></i></div>
+              <span class="hint" id="pw-hint"></span>
+            </div>
+            <div class="field">
+              <label for="password2" data-i18n="auth.passwordRepeat"></label>
+              <input class="input" id="password2" type="password" autocomplete="new-password" required>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2: instance -->
+        <section class="setup__step" data-step="2">
+          <div class="stack" style="--gap:10px">
+            <span class="eyebrow" data-i18n="setup.step3"></span>
+            <h2 class="h1" data-i18n="setup.instanceTitle"></h2>
+            <p class="muted" style="margin:0" data-i18n="setup.instanceText"></p>
+          </div>
+          <div class="stack" data-errors>
+            <div class="field">
+              <label for="site-name" data-i18n="settings.siteName"></label>
+              <input class="input" id="site-name" maxlength="60" value="ShareHost">
+            </div>
+            <div class="field">
+              <span class="label" data-i18n="settings.registrationMode"></span>
+              <div class="choice-grid">
+                <label class="choice"><input type="radio" name="reg" value="closed" checked><span data-icon="lock"></span><strong data-i18n="enum.registrationMode.closed"></strong><span data-i18n="setup.regClosed"></span></label>
+                <label class="choice"><input type="radio" name="reg" value="invite"><span data-icon="ticket"></span><strong data-i18n="enum.registrationMode.invite"></strong><span data-i18n="setup.regInvite"></span></label>
+                <label class="choice"><input type="radio" name="reg" value="open"><span data-icon="users"></span><strong data-i18n="enum.registrationMode.open"></strong><span data-i18n="setup.regOpen"></span></label>
+              </div>
+            </div>
+            <div class="toggle-row">
+              <div class="stack" style="--gap:2px">
+                <strong class="h3" data-i18n="settings.guestUploads"></strong>
+                <span class="hint" data-i18n="settings.guestUploads.hint"></span>
+              </div>
+              <label class="switch"><input type="checkbox" id="guest"><span></span></label>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3: done -->
+        <section class="setup__step" data-step="3" style="align-items:center;text-align:center;padding-block:20px">
+          <div style="position:relative">
+            <div class="success-badge" id="done-badge"></div>
+            <div class="burst" id="burst"></div>
+          </div>
+          <div class="stack" style="--gap:10px;align-items:center">
+            <h2 class="h1" data-i18n="setup.doneTitle"></h2>
+            <p class="lead" data-i18n="setup.doneText"></p>
+          </div>
+          <div class="row" style="justify-content:center">
+            <a class="btn btn--primary btn--lg" href="/admin" id="to-admin"></a>
+            <a class="btn btn--lg" href="/" data-i18n="setup.toUpload"></a>
+          </div>
+        </section>
+      </form>
+
+      <div class="setup__foot" id="foot">
+        <button class="btn btn--ghost" type="button" id="back" hidden></button>
+        <span></span>
+        <button class="btn btn--primary" type="button" id="next"></button>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

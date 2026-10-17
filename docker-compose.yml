@@ -1,0 +1,17 @@
+services:
+  sharehost:
+    build: .
+    image: sharehost:latest
+    container_name: sharehost
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - sharehost-data:/data
+    environment:
+      # Number of reverse proxies in front of ShareHost (nginx, Caddy, Traefik …).
+      # Needed for correct client IPs (rate limiting) and secure cookies. Remove if exposed directly.
+      - TRUST_PROXY=1
+
+volumes:
+  sharehost-data:
