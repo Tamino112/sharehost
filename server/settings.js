@@ -17,7 +17,7 @@ export const SCHEMA = {
 
   // Uploads
   maxFileSizeMB:      { group: 'uploads', type: 'int', min: 1, max: 1048576, default: 2048, unit: 'MB' },
-  maxFilesPerShare:   { group: 'uploads', type: 'int', min: 1, max: 1000, default: 50 },
+  maxFilesPerShare:   { group: 'uploads', type: 'int', min: 1, max: 10000, default: 1000 },
   defaultExpiryHours: { group: 'uploads', type: 'int', min: 1, max: 87600, default: 168, unit: 'h' },
   maxExpiryHours:     { group: 'uploads', type: 'int', min: 0, max: 87600, default: 720, unit: 'h' },
   allowNeverExpire:   { group: 'uploads', type: 'bool', default: false },
@@ -30,7 +30,7 @@ export const SCHEMA = {
   guestUploads:        { group: 'guests', type: 'bool', default: false },
   guestMaxFileSizeMB:  { group: 'guests', type: 'int', min: 1, max: 1048576, default: 100, unit: 'MB' },
   guestMaxExpiryHours: { group: 'guests', type: 'int', min: 1, max: 87600, default: 24, unit: 'h' },
-  guestMaxFiles:       { group: 'guests', type: 'int', min: 1, max: 1000, default: 10 },
+  guestMaxFiles:       { group: 'guests', type: 'int', min: 1, max: 10000, default: 10 },
 
   // Accounts & security
   registrationMode:    { group: 'access', type: 'enum', values: ['closed', 'invite', 'open'], default: 'closed' },

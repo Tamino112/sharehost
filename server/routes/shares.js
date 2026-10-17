@@ -157,7 +157,9 @@ async function createShare(req, res) {
     if (usedBytes(req.user.id) + total > quotaBytes(req.user)) throw new HttpError(413, 'This upload would exceed your storage quota.', 'quota');
   }
 
-  const crcs = await Promise.all(files.map(f => crc32File(f.path)));
+  // One at a time: a folder upload can hold thousands of files, too many to open at once.
+  const crcs = [];
+  for (const f of files) crcs.push(await crc32File(f.path));
   const id = randomId(9);
   const manageToken = guest ? randomId(24) : null;
   const t = now();

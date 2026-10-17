@@ -1,5 +1,5 @@
 import {
-  init, t, $, $$, h, esc, icon, enhanceSelect, formatBytes, formatHours, shareUrl, copyText, toast, splitWords, apiError, api,
+  init, t, $, $$, h, esc, icon, enhanceSelect, formatNumber, formatBytes, formatHours, shareUrl, copyText, toast, splitWords, apiError, api,
 } from './core.js';
 import { fileIcon } from './icons.js';
 import { DICT } from './i18n.js';
@@ -52,7 +52,7 @@ if (!up.allowed) {
 $('#drop-icon').innerHTML = icon('cloud');
 $('#chev').innerHTML = icon('chevronDown');
 $('#pw-toggle').innerHTML = icon('eye');
-$('#drop-hint').textContent = t('upload.hint', { size: formatBytes(up.maxFileSizeMB * MB, 0), count: up.maxFiles });
+$('#drop-hint').textContent = t('upload.hint', { size: formatBytes(up.maxFileSizeMB * MB, 0), count: formatNumber(up.maxFiles) });
 if (s.uploadNotice) { $('#upload-notice').textContent = s.uploadNotice; $('#upload-notice').hidden = false; }
 if (!up.allowPassword) $('#opt-password-field').remove();
 
@@ -95,7 +95,7 @@ function addFiles(incoming) {
   }
   // Never upload half a folder: reject the whole batch when it doesn't fit.
   if (files.length + accepted.length > up.maxFiles) {
-    toast(t('upload.tooMany', { count: up.maxFiles }), 'error');
+    toast(t('upload.tooMany', { n: formatNumber(files.length + accepted.length), count: formatNumber(up.maxFiles) }), 'error');
     return;
   }
   files.push(...accepted);
@@ -207,6 +207,9 @@ function updateSummary() {
 
 dropzone.addEventListener('click', () => input.click());
 dropzone.addEventListener('keydown', e => { if (e.target === dropzone && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); input.click(); } });
+$('#files-btn').innerHTML = `${icon('file')}<span>${esc(t('upload.chooseFiles'))}</span>`;
+$('#files-btn').addEventListener('click', e => { e.stopPropagation(); input.click(); });
+// Browsers can't offer files and folders in one dialog, hence two buttons.
 $('#folder-btn').innerHTML = `${icon('folder')}<span>${esc(t('upload.chooseFolder'))}</span>`;
 // Chromium blocks reading a folder's files once its <input> is cleared or re-used for another
 // folder, so every folder pick gets its own input, kept until the upload is finished. They live
