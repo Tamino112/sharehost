@@ -113,12 +113,13 @@ export function apiError(status, data) {
 
 // ------------------------------------------------------------------ appearance
 
-function inkFor(hex) {
+function luminance(hex) {
   const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
     .map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
-  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return lum > 0.32 ? '#0c0f05' : '#ffffff';
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
+
+const inkFor = hex => (luminance(hex) > 0.32 ? '#111214' : '#ffffff');
 
 export function resolveTheme(setting) {
   let stored = null;
@@ -131,8 +132,9 @@ export function resolveTheme(setting) {
 let backdropKey = '';
 export function applyAppearance(s) {
   const root = document.documentElement;
-  root.style.setProperty('--accent', s.accentColor);
-  root.style.setProperty('--accent-ink', inkFor(s.accentColor));
+  root.style.setProperty('--accent-base', s.accentColor);
+  root.style.setProperty('--accent-ink-base', inkFor(s.accentColor));
+  root.dataset.accentTone = luminance(s.accentColor) > 0.6 ? 'light' : 'dark';
   root.style.setProperty('--ga', String(s.glassOpacity / 100));
   root.style.setProperty('--blur', `${s.glassBlur}px`);
   root.style.setProperty('--dim', String(s.backgroundDim / 100));

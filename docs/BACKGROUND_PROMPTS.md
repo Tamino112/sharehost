@@ -12,7 +12,7 @@ Veo, Sora, Pika, Luma (video). Prompts are in English because image models follo
 
 - **Aspect ratio 16:9**, at least **2560 × 1440** (3840 × 2160 for 4K screens). Midjourney: `--ar 16:9 --style raw`.
 - Keep the **centre and left side calm** — that's where the headline and upload card sit.
-- Avoid saturated purple/blue gradients, neon and HDR looks; they are what makes things look "AI-made".
+- Avoid saturated purple/blue gradients, neon accents, glows and HDR looks; they are what makes things look "AI-made".
 - Use this **negative prompt** where supported:
 
   ```
@@ -31,16 +31,16 @@ muted warm sand light drifting in from the top-left corner, gentle volumetric ha
 fine analog film grain, large calm empty area in the centre, no objects, no text, quiet and premium,
 cinematic colour grading, 8k, 16:9
 ```
-Accent colour: `#d4ff5e` (lime) or `#8ee3ff` (ice blue).
+Accent colour: `#ecebe6` (porcelain, default) or `#b7c4bb` (sage).
 
 ### 2 · Frosted Glass Monoliths
 ```
 Abstract 3D still life of large translucent frosted-glass slabs and softly rounded panels floating in a dark
-charcoal void, subtle refraction and light caustics, thin rim light in pale lime and cool white, objects only
+charcoal void, subtle refraction and light caustics, thin rim light in cool white, objects only
 at the right and bottom edges, the left two thirds of the frame calm and empty, matte surfaces, shallow depth
 of field, studio product lighting, minimal Scandinavian design, no text, 8k, 16:9
 ```
-Accent colour: `#d4ff5e`.
+Accent colour: `#ecebe6` (porcelain).
 
 ### 3 · Smoked Silk
 ```
@@ -48,7 +48,7 @@ Slow flowing sheet of smoked dark glass-like silk folding gently across the lowe
 near-black background, soft specular highlights in champagne and grey, long gentle curves, very low contrast,
 elegant and quiet, extreme macro photography, fine grain, lots of negative space above, no text, 16:9
 ```
-Accent colour: `#ffd66b` (warm gold) or `#f2f2ef` (off-white).
+Accent colour: `#d9c08f` (muted gold) or `#ecebe6` (porcelain).
 
 ### 4 · Night Concrete
 ```
@@ -56,7 +56,7 @@ Minimal architectural photograph at night, a smooth curved concrete wall lit by 
 of light from below, deep shadows, misty air, brutalist yet calm, long exposure, muted colours, 35mm film look,
 fine grain, the upper half of the frame almost black and empty, no people, no text, 16:9
 ```
-Accent colour: `#7ef0b4` (mint).
+Accent colour: `#b7c4bb` (sage).
 
 ### 5 · Porcelain Light (for the light theme)
 ```
@@ -64,7 +64,7 @@ Soft minimal abstract background in porcelain white, warm stone and very pale sa
 falling through frosted glass, blurred soft shadows of window frames, airy and calm, extremely subtle
 gradients, matte paper texture, high-key, plenty of empty space, no objects in focus, no text, 16:9
 ```
-Accent colour: `#9bd400` (deeper lime) or `#3aa6ff` (blue) — pale accents get lost on light backgrounds.
+Accent colour: any — in the light theme, very light accents automatically switch to near-black buttons.
 Set *Theme* to **Light** and *Background dimming* to ~15 %.
 
 ### 6 · Deep Water Ink
@@ -73,7 +73,7 @@ Abstract macro of dark ink clouds slowly diffusing in deep black water, wisps of
 grey, soft volumetric light from the top, ultra smooth, mysterious but calm, low contrast, fine grain,
 empty dark centre, no text, 8k, 16:9
 ```
-Accent colour: `#8ee3ff`.
+Accent colour: `#a9b9c6` (steel blue).
 
 ---
 
@@ -93,7 +93,7 @@ no text. The last frame matches the first frame.
 ### B · Rotating Glass
 ```
 Seamless loop, 12 seconds, static camera. Large frosted glass panels floating in a dark charcoal void rotate
-very slowly around their vertical axis, soft light caustics sweep gently across their surfaces, thin pale lime
+very slowly around their vertical axis, soft light caustics sweep gently across their surfaces, thin cool white
 rim light. Slow, weightless, hypnotic motion, shallow depth of field, studio lighting, no text, minimal.
 The last frame matches the first frame.
 ```

@@ -226,7 +226,7 @@ async function renderSettings(panel, group) {
   }
 }
 
-const SWATCHES = ['#d4ff5e', '#f2f2ef', '#8ee3ff', '#7ef0b4', '#ffb38a', '#ff8fb1', '#b9a6ff', '#ffd66b'];
+const SWATCHES = ['#ecebe6', '#d6cfc0', '#b7c4bb', '#a9b9c6', '#cdb19c', '#c2c79f', '#d9c08f', '#9aa3ab'];
 
 function settingRow(key, def) {
   const value = current(key);
