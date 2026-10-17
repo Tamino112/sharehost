@@ -55,10 +55,12 @@ function renderLocked() {
   mount(card);
 }
 
+const baseName = name => name.slice(name.lastIndexOf('/') + 1);
+
 function renderShare(share) {
   const fileUrl = (f, preview) => `/d/${encodeURIComponent(share.id)}/${encodeURIComponent(f.id)}${preview ? '?preview=1' : ''}`;
   const left = share.maxDownloads ? share.maxDownloads - share.downloadCount : null;
-  const heading = share.title || (share.files.length === 1 ? share.files[0].name : t('share.nFiles', { n: share.files.length }));
+  const heading = share.title || (share.files.length === 1 ? baseName(share.files[0].name) : t('share.nFiles', { n: share.files.length }));
 
   const card = h(`<div class="share-card glass glass--xl" data-glow>
     <div class="share-card__head">
@@ -87,11 +89,15 @@ function renderShare(share) {
   share.files.forEach((f, i) => {
     const row = h(`<div class="share-file" style="--i:${Math.min(i, 10)}">
       <div class="file-thumb ${f.preview ? 'is-previewable' : ''}" ${f.preview ? 'role="button" tabindex="0"' : ''}>${icon(fileIcon(f.mime, f.name))}</div>
-      <div class="file-meta"><div class="file-name"></div><div class="file-size">${esc(formatBytes(f.size))}</div></div>
+      <div class="file-meta"><div class="file-name"></div><div class="file-size"></div></div>
       ${f.preview ? `<button class="btn btn--ghost btn--icon btn--sm" data-act="preview" data-i18n-title="share.preview">${icon(f.mime.startsWith('image/') ? 'eye' : 'play')}</button>` : ''}
-      <a class="btn btn--sm" href="${fileUrl(f)}" download>${icon('download')}<span class="hide-sm" data-i18n="share.download"></span></a>
+      <a class="btn btn--sm" href="${fileUrl(f)}" download="${esc(baseName(f.name))}">${icon('download')}<span class="hide-sm" data-i18n="share.download"></span></a>
     </div>`);
-    $('.file-name', row).textContent = f.name;
+    $('.file-name', row).textContent = baseName(f.name);
+    // Files from a folder upload show the folder they came from next to the size.
+    const dir = f.name.includes('/') ? f.name.slice(0, f.name.lastIndexOf('/')) : '';
+    $('.file-size', row).textContent = dir ? `${dir}/ · ${formatBytes(f.size)}` : formatBytes(f.size);
+    $('.file-size', row).title = f.name;
     if (f.preview && f.mime.startsWith('image/') && f.size < 15 * 1048576) {
       const img = new Image();
       img.alt = '';

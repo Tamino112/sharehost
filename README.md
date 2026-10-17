@@ -9,7 +9,8 @@ Drop files, get a link, done — on your own server, with your own rules.
 
 ## Features
 
-- **Drag & drop uploads** with live progress, speed and ETA — or paste files with <kbd>Ctrl</kbd>+<kbd>V</kbd>
+- **Drag & drop uploads** of files **and whole folders** (structure is kept, also in the ZIP) with live progress, speed and ETA — or paste files with <kbd>Ctrl</kbd>+<kbd>V</kbd>
+- **Distraction-free start page**: just the upload box by default; headline and feature cards can be switched on in the admin panel
 - **Share links** with optional **password**, **expiry** and **download limit**
 - **Download all as ZIP** (streamed, no temp files) plus inline previews for images, video and audio
 - **First-run setup wizard** that creates the administrator account

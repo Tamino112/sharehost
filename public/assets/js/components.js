@@ -18,7 +18,7 @@ export function statTile({ label, ic, value, sub = '', meter = null, i = 0 }) {
 export function shareRow(s, i, { onDelete, showOwner = false } = {}) {
   const expired = s.expiresAt && s.expiresAt < Date.now();
   const soon = s.expiresAt && s.expiresAt - Date.now() < 86400000;
-  const name = s.title || s.firstName || s.id;
+  const name = s.title || (s.firstName || '').split('/').pop() || s.id;
   const row = h(`<div class="list-row" style="--i:${Math.min(i, 12)}">
     <div class="file-thumb" style="width:44px;height:44px;border-radius:13px">${icon(s.fileCount > 1 ? 'archive' : fileIcon('', s.firstName || ''))}</div>
     <div style="min-width:0">

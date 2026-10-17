@@ -113,8 +113,8 @@ function dosDateTime(ms) {
 function uniqueNames(files) {
   const used = new Set();
   return files.map(f => {
-    const base = f.name.replace(/[\\/]/g, '_');
-    const ext = path.extname(base);
+    const base = f.name.replace(/\\/g, '_'); // keep "/" so folder uploads unpack into folders
+    const ext = path.posix.extname(base);
     const stem = base.slice(0, base.length - ext.length);
     let name = base;
     for (let n = 2; used.has(name.toLowerCase()); n++) name = `${stem} (${n})${ext}`;

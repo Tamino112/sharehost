@@ -12,7 +12,8 @@ export const SCHEMA = {
   description:     { group: 'general', type: 'text', default: 'A private file sharing space on your own server. No tracking, no ads, no limits you did not set yourself.', max: 500, public: true },
   defaultLanguage: { group: 'general', type: 'enum', values: ['en', 'de'], default: 'en', public: true },
   publicUrl:       { group: 'general', type: 'string', default: '', max: 200, placeholder: 'https://share.example.com', public: true },
-  showFeatures:    { group: 'general', type: 'bool', default: true, public: true },
+  // Off: the start page shows only the upload box. On: headline, description and feature cards too.
+  showIntro:       { group: 'general', type: 'bool', default: false, public: true },
 
   // Uploads
   maxFileSizeMB:      { group: 'uploads', type: 'int', min: 1, max: 1048576, default: 2048, unit: 'MB' },

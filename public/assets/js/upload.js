@@ -19,7 +19,12 @@ splitWords($('#tagline'), tagline, dimFrom);
 $('#description').textContent = s.description === DICT.en['home.description'] ? t('home.description') : s.description;
 $('#stat-size').textContent = formatBytes(up.maxFileSizeMB * MB, 0);
 $('#stat-expiry').textContent = up.allowNeverExpire || up.maxExpiryHours === 0 ? '∞' : formatHours(up.maxExpiryHours);
-if (!s.showFeatures) { $('#features').remove(); $('#marquee').remove(); }
+if (!s.showIntro) {
+  $('.hero__copy').remove();
+  $('#features').remove();
+  $('#marquee').remove();
+  $('.hero').classList.add('is-minimal');
+}
 for (const el of $$('[data-icon]')) el.innerHTML = icon(el.dataset.icon);
 
 const marquee = $('.marquee__track', document);
@@ -64,11 +69,13 @@ enhanceSelect(expirySelect);
 
 // ---------------------------------------------------------------- file selection
 
+// Each entry is { file, path }: path is the file name, or "Folder/sub/name.ext" for folder uploads.
 const files = [];
 const input = $('#file-input');
 const dropzone = $('#dropzone');
 const list = $('#file-list');
 const uploadBtn = $('#upload-btn');
+const JUNK = new Set(['.ds_store', 'thumbs.db', 'desktop.ini']);
 
 function extOf(name) {
   const i = name.lastIndexOf('.');
@@ -77,51 +84,111 @@ function extOf(name) {
 
 function addFiles(incoming) {
   let rejected = 0;
-  for (const file of incoming) {
-    if (files.length >= up.maxFiles) { toast(t('upload.tooMany', { count: up.maxFiles }), 'error'); break; }
+  const accepted = [];
+  for (const { file, path } of incoming) {
+    if (JUNK.has(file.name.toLowerCase()) || path.startsWith('__MACOSX/')) continue;
     const ext = extOf(file.name);
     if (file.size > up.maxFileSizeMB * MB) { toast(t('upload.tooLarge', { name: file.name, size: formatBytes(up.maxFileSizeMB * MB, 0) }), 'error'); continue; }
     if ((up.allowedExtensions.length && !up.allowedExtensions.includes(ext)) || (ext && up.blockedExtensions.includes(ext))) { rejected++; continue; }
-    if (files.some(f => f.name === file.name && f.size === file.size && f.lastModified === file.lastModified)) continue;
-    files.push(file);
+    if ([...files, ...accepted].some(f => f.path === path && f.file.size === file.size && f.file.lastModified === file.lastModified)) continue;
+    accepted.push({ file, path });
   }
+  // Never upload half a folder: reject the whole batch when it doesn't fit.
+  if (files.length + accepted.length > up.maxFiles) {
+    toast(t('upload.tooMany', { count: up.maxFiles }), 'error');
+    return;
+  }
+  files.push(...accepted);
   if (rejected) toast(t('upload.typeBlocked', { count: rejected }), 'error');
   renderFiles();
 }
 
-function renderFiles() {
-  const known = new Map($$('.file-row', list).map(r => [r.fileRef, r]));
-  list.replaceChildren();
-  files.forEach((file, i) => {
-    let row = known.get(file);
-    if (!row) {
-      row = h(`<div class="file-row" style="--i:${Math.min(i, 8)}">
-        <div class="file-thumb">${icon(fileIcon(file.type, file.name))}</div>
-        <div class="file-meta"><div class="file-name"></div><div class="file-size">${esc(formatBytes(file.size))}</div></div>
-        <button class="btn btn--ghost btn--icon btn--sm" aria-label="${esc(t('common.remove'))}">${icon('x')}</button>
-      </div>`);
-      row.fileRef = file;
-      $('.file-name', row).textContent = file.name;
-      if (file.type.startsWith('image/') && file.size < 25 * MB) {
-        const img = new Image();
-        img.alt = '';
-        img.onload = () => URL.revokeObjectURL(img.src);
-        img.src = URL.createObjectURL(file);
-        $('.file-thumb', row).replaceChildren(img);
+const asEntries = fileList => [...fileList].map(file => ({ file, path: file.webkitRelativePath || file.name }));
+
+/** Reads dropped files and folders (recursively) via the File System Entry API. */
+async function readDrop(entries) {
+  const out = [];
+  const readAll = reader => new Promise((resolve, reject) => reader.readEntries(resolve, reject));
+  const walk = async (entry, prefix) => {
+    if (entry.isFile) {
+      const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
+      out.push({ file, path: prefix + file.name });
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      // readEntries returns results in batches; keep reading until it returns none.
+      for (let batch = await readAll(reader); batch.length; batch = await readAll(reader)) {
+        for (const child of batch) await walk(child, `${prefix}${entry.name}/`);
       }
-      $('button', row).addEventListener('click', e => {
-        e.stopPropagation();
-        row.classList.add('is-leaving');
-        row.addEventListener('animationend', () => {
-          files.splice(files.indexOf(file), 1);
-          renderFiles();
-        }, { once: true });
-      });
+    }
+  };
+  for (const entry of entries) await walk(entry, '');
+  return out;
+}
+
+const removeRow = (row, matches) => {
+  row.classList.add('is-leaving');
+  row.addEventListener('animationend', () => {
+    for (let i = files.length - 1; i >= 0; i--) if (matches(files[i])) files.splice(i, 1);
+    renderFiles();
+  }, { once: true });
+};
+
+function fileRow(entry, i) {
+  const { file } = entry;
+  const row = h(`<div class="file-row" style="--i:${Math.min(i, 8)}">
+    <div class="file-thumb">${icon(fileIcon(file.type, file.name))}</div>
+    <div class="file-meta"><div class="file-name"></div><div class="file-size">${esc(formatBytes(file.size))}</div></div>
+    <button class="btn btn--ghost btn--icon btn--sm" aria-label="${esc(t('common.remove'))}">${icon('x')}</button>
+  </div>`);
+  $('.file-name', row).textContent = file.name;
+  if (file.type.startsWith('image/') && file.size < 25 * MB) {
+    const img = new Image();
+    img.alt = '';
+    img.onload = () => URL.revokeObjectURL(img.src);
+    img.src = URL.createObjectURL(file);
+    $('.file-thumb', row).replaceChildren(img);
+  }
+  $('button', row).addEventListener('click', e => { e.stopPropagation(); removeRow(row, f => f === entry); });
+  return row;
+}
+
+function folderRow(name, entries, i) {
+  const size = entries.reduce((sum, f) => sum + f.file.size, 0);
+  const row = h(`<div class="file-row" style="--i:${Math.min(i, 8)}">
+    <div class="file-thumb">${icon('folder')}</div>
+    <div class="file-meta"><div class="file-name"></div><div class="file-size">${esc(t('upload.folderMeta', { count: entries.length, size: formatBytes(size) }))}</div></div>
+    <button class="btn btn--ghost btn--icon btn--sm" aria-label="${esc(t('common.remove'))}">${icon('x')}</button>
+  </div>`);
+  $('.file-name', row).textContent = name;
+  $('button', row).addEventListener('click', e => { e.stopPropagation(); removeRow(row, f => f.path.startsWith(`${name}/`)); });
+  return row;
+}
+
+function renderFiles() {
+  // Keep existing rows (and their entry animation state) when re-rendering.
+  const known = new Map($$('.file-row', list).map(r => [r.dataset.key, r]));
+  const groups = new Map();
+  for (const entry of files) {
+    const root = entry.path.includes('/') ? entry.path.split('/')[0] : null;
+    const key = root ? `dir:${root}` : `file:${entry.path}:${entry.file.size}:${entry.file.lastModified}`;
+    if (!groups.has(key)) groups.set(key, { root, entries: [] });
+    groups.get(key).entries.push(entry);
+  }
+  list.replaceChildren();
+  let i = 0;
+  for (const [key, { root, entries }] of groups) {
+    let row = known.get(key);
+    // Folder rows show a count, so rebuild them whenever their contents change.
+    if (!row || (root && row.dataset.count !== String(entries.length))) {
+      row = root ? folderRow(root, entries, i) : fileRow(entries[0], i);
+      row.dataset.key = key;
+      row.dataset.count = entries.length;
     }
     list.append(row);
-  });
+    i++;
+  }
 
-  const total = files.reduce((sum, f) => sum + f.size, 0);
+  const total = files.reduce((sum, f) => sum + f.file.size, 0);
   dropzone.classList.toggle('is-compact', files.length > 0);
   $('#options-wrap').hidden = files.length === 0;
   uploadBtn.disabled = files.length === 0;
@@ -139,8 +206,20 @@ function updateSummary() {
 }
 
 dropzone.addEventListener('click', () => input.click());
-dropzone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
-input.addEventListener('change', () => { addFiles(input.files); input.value = ''; });
+dropzone.addEventListener('keydown', e => { if (e.target === dropzone && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); input.click(); } });
+$('#folder-btn').innerHTML = `${icon('folder')}<span>${esc(t('upload.chooseFolder'))}</span>`;
+// Chromium blocks reading a folder's files once its <input> is cleared or re-used for another
+// folder, so every folder pick gets its own input, kept until the upload is finished. They live
+// outside the dropzone so their click doesn't bubble into it and open the regular file dialog.
+const folderPickers = $('#folder-pickers');
+$('#folder-btn').addEventListener('click', e => {
+  e.stopPropagation();
+  const picker = h('<input type="file" webkitdirectory multiple>');
+  picker.addEventListener('change', () => addFiles(asEntries(picker.files)));
+  folderPickers.append(picker);
+  picker.click();
+});
+input.addEventListener('change', () => { addFiles(asEntries(input.files)); input.value = ''; });
 
 // Drag & drop anywhere on the page
 let dragDepth = 0;
@@ -148,16 +227,24 @@ const hasFiles = e => [...(e.dataTransfer?.types || [])].includes('Files');
 window.addEventListener('dragenter', e => { if (!hasFiles(e) || !up.allowed) return; dragDepth++; dropzone.classList.add('is-over'); });
 window.addEventListener('dragleave', e => { if (!hasFiles(e)) return; dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) dropzone.classList.remove('is-over'); });
 window.addEventListener('dragover', e => { if (hasFiles(e)) e.preventDefault(); });
-window.addEventListener('drop', e => {
+window.addEventListener('drop', async e => {
   if (!hasFiles(e)) return;
   e.preventDefault();
   dragDepth = 0;
   dropzone.classList.remove('is-over');
-  if (up.allowed && !views.pick.hidden) addFiles(e.dataTransfer.files);
+  if (!up.allowed || views.pick.hidden) return;
+  // Entries must be taken synchronously — the DataTransfer is emptied once this handler yields.
+  const entries = [...e.dataTransfer.items].map(item => item.webkitGetAsEntry?.()).filter(Boolean);
+  if (!entries.length) return addFiles(asEntries(e.dataTransfer.files));
+  try {
+    addFiles(await readDrop(entries));
+  } catch {
+    toast(t('upload.folderReadError'), 'error');
+  }
 });
 window.addEventListener('paste', e => {
   const pasted = [...(e.clipboardData?.files || [])];
-  if (pasted.length && up.allowed && !views.pick.hidden) addFiles(pasted);
+  if (pasted.length && up.allowed && !views.pick.hidden) addFiles(asEntries(pasted));
 });
 
 $('#options-toggle').addEventListener('click', e => {
@@ -195,13 +282,14 @@ uploadBtn.addEventListener('click', () => {
   if ($('#opt-password')?.value) form.append('password', $('#opt-password').value);
   if ($('#opt-title').value.trim()) form.append('title', $('#opt-title').value.trim());
   if ($('#opt-message').value.trim()) form.append('message', $('#opt-message').value.trim());
-  for (const f of files) form.append('files', f, f.name);
+  form.append('paths', JSON.stringify(files.map(f => f.path)));
+  for (const { file } of files) form.append('files', file, file.name);
 
   setProgress(0);
   ring.classList.remove('is-done');
   show('progress');
   const started = performance.now();
-  const total = files.reduce((sum, f) => sum + f.size, 0);
+  const total = files.reduce((sum, f) => sum + f.file.size, 0);
 
   xhr = new XMLHttpRequest();
   xhr.open('POST', '/api/shares');
@@ -272,6 +360,7 @@ $('#copy-btn').addEventListener('click', () => copyText($('#share-link').value))
 $('#share-link').addEventListener('focus', e => e.target.select());
 $('#again-btn').addEventListener('click', () => {
   files.length = 0;
+  folderPickers.replaceChildren();
   for (const id of ['#opt-title', '#opt-message', '#opt-max', '#opt-password']) if ($(id)) $(id).value = '';
   renderFiles();
   show('pick');

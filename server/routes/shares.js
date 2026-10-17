@@ -26,6 +26,29 @@ function cleanName(name) {
   return cleaned || 'file';
 }
 
+/** Relative paths sent with a folder upload, one per file in upload order. */
+function relPaths(body) {
+  try {
+    const list = JSON.parse(body.paths || '[]');
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Builds the stored name for a file from a folder upload: the client's relative path, reduced to
+ * safe folder segments (no "..", no absolute paths, no control characters), plus the real file name.
+ */
+function folderPath(rel, fileName) {
+  if (typeof rel !== 'string') return fileName;
+  const dirs = rel.replace(/\\/g, '/').split('/').slice(0, -1)
+    .map(s => s.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 120))
+    .filter(s => s && s !== '.' && s !== '..')
+    .slice(0, 24);
+  return [...dirs, fileName].join('/');
+}
+
 function fileFilter(_req, file, cb) {
   file.originalname = cleanName(file.originalname);
   const ext = extOf(file.originalname);
@@ -66,7 +89,8 @@ router.post('/api/shares', uploadLimiter, (req, res, next) => {
     storage,
     fileFilter,
     defParamCharset: 'utf8',
-    limits: { fileSize: maxMB * MB, files: maxFiles, fields: 20, fieldSize: 4096 },
+    // fieldSize leaves room for the JSON list of relative paths of a folder upload
+    limits: { fileSize: maxMB * MB, files: maxFiles, fields: 20, fieldSize: 2 * MB },
   }).array('files', maxFiles);
 
   upload(req, res, err => {
@@ -94,7 +118,12 @@ async function createShare(req, res) {
   if (!files.length) throw new HttpError(400, 'Please choose at least one file.', 'no_files');
   const body = req.body || {};
 
-  const title = String(body.title || '').trim().slice(0, 120) || null;
+  const paths = relPaths(body);
+  const names = files.map((f, i) => folderPath(paths[i], f.originalname));
+  // A single uploaded folder names the share unless a title was given.
+  const roots = new Set(names.map(n => (n.includes('/') ? n.split('/')[0] : null)));
+  const folderTitle = roots.size === 1 && !roots.has(null) ? [...roots][0] : null;
+  const title = String(body.title || '').trim().slice(0, 120) || folderTitle?.slice(0, 120) || null;
   const message = String(body.message || '').trim().slice(0, 1000) || null;
 
   let passwordHash = null;
@@ -138,7 +167,7 @@ async function createShare(req, res) {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(id, req.user?.id ?? null, title, message, passwordHash, expiresAt, maxDownloads, manageToken && sha256(manageToken), req.ip || null, t);
     const insert = db.prepare('INSERT INTO files (id, share_id, name, size, mime, crc32, storage_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-    files.forEach((f, i) => insert.run(randomId(9), id, f.originalname, f.size, mimeFor(f.originalname), crcs[i], f.filename, t));
+    files.forEach((f, i) => insert.run(randomId(9), id, names[i], f.size, mimeFor(f.originalname), crcs[i], f.filename, t));
   });
 
   res.status(201).json({ id, url: `/s/${id}`, manageToken, expiresAt, fileCount: files.length });
@@ -282,7 +311,7 @@ router.get('/d/:id/:fileId', downloadGuard(async (req, res, share) => {
     if (!range || /^bytes=0-/.test(range)) {
       if (!countDownload(share, file.id)) throw new HttpError(410, 'Download limit reached.', 'expired');
     }
-    res.attachment(file.name);
+    res.attachment(path.posix.basename(file.name));
   }
   res.sendFile(filePath(file.storage_name), { cacheControl: false, headers: { 'Cache-Control': 'private, no-store' } }, err => {
     if (err && !res.headersSent) res.status(err.status || 500).end();
