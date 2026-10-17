@@ -1,5 +1,5 @@
 import {
-  init, t, $, $$, h, esc, icon, formatBytes, formatHours, shareUrl, copyText, toast, splitWords, apiError, api,
+  init, t, $, $$, h, esc, icon, enhanceSelect, formatBytes, formatHours, shareUrl, copyText, toast, splitWords, apiError, api,
 } from './core.js';
 import { fileIcon } from './icons.js';
 import { DICT } from './i18n.js';
@@ -60,6 +60,7 @@ if (!choices.includes(up.defaultExpiryHours)) choices.push(up.defaultExpiryHours
 choices = [...new Set(choices)].sort((a, b) => a - b);
 if (up.allowNeverExpire) choices.push(0);
 expirySelect.innerHTML = choices.map(hrs => `<option value="${hrs}" ${hrs === up.defaultExpiryHours ? 'selected' : ''}>${esc(formatHours(hrs))}</option>`).join('');
+enhanceSelect(expirySelect);
 
 // ---------------------------------------------------------------- file selection
 

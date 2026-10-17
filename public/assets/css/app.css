@@ -376,6 +376,27 @@ main { flex: 1; padding-block: 112px 64px; }
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23999' stroke-width='1.6' viewBox='0 0 12 12'><path d='m3 4.5 3 3 3-3'/></svg>");
   background-repeat: no-repeat; background-position: right 15px center; }
 .select option { background: #15171a; color: #f3f4f0; }
+.dd-trigger { display: flex; align-items: center; text-align: left; border: 0; }
+.dd-trigger[aria-expanded='true'] { background-color: var(--field-hover); box-shadow: 0 0 0 1px var(--line-2) inset, 0 0 0 1px var(--ink-3); }
+.dd-menu {
+  position: fixed; z-index: 95; padding: 5px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  background: color-mix(in oklab, var(--bg) 86%, transparent);
+  -webkit-backdrop-filter: blur(28px) saturate(160%); backdrop-filter: blur(28px) saturate(160%);
+  transform-origin: top center; animation: dd-in .22s var(--ease) both;
+}
+.dd-menu.is-up { transform-origin: bottom center; }
+.dd-menu.is-leaving { animation: dd-out .16s var(--ease) both; }
+@keyframes dd-in { from { opacity: 0; transform: translateY(-4px) scale(.97); } }
+@keyframes dd-out { to { opacity: 0; transform: scale(.98); } }
+.dd-option {
+  position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 9px 11px; border-radius: 10px; font-size: 14px; color: var(--ink-2); cursor: pointer; user-select: none;
+  transition: background .12s, color .12s;
+}
+.dd-option.is-active { background: var(--field-hover); color: var(--ink); }
+.dd-option svg { width: 15px; height: 15px; flex: none; opacity: 0; transform: scale(.6); transition: opacity .15s, transform .25s var(--ease-spring); }
+.dd-option[aria-selected='true'] { color: var(--ink); font-weight: 550; }
+.dd-option[aria-selected='true'] svg { opacity: 1; transform: none; }
 .input-group { position: relative; display: flex; align-items: center; }
 .input-group .input { padding-right: 48px; }
 .input-group .btn { position: absolute; right: 4px; }

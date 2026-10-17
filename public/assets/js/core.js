@@ -292,6 +292,102 @@ export function confirmDialog({ title, body = '', confirm = t('common.delete'), 
   });
 }
 
+/**
+ * Replaces a native <select> with a glass dropdown. The <select> stays in the DOM (hidden) and keeps
+ * its value in sync, firing `input` + `change`, so forms and listeners keep working unchanged.
+ * The menu is rendered on <body> so its backdrop blur isn't swallowed by a parent glass panel.
+ */
+export function enhanceSelect(select) {
+  select.hidden = true;
+  const id = select.id || `sel-${Math.random().toString(36).slice(2, 8)}`;
+  const trigger = h(`<button type="button" class="select dd-trigger" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="${id}-list"><span class="truncate"></span></button>`);
+  const label = select.id && $(`label[for="${select.id}"]`);
+  if (label) { label.htmlFor = ''; label.addEventListener('click', () => trigger.focus()); trigger.setAttribute('aria-label', label.textContent); }
+  select.after(trigger);
+
+  let menu = null;
+  let active = 0;
+  const options = () => [...select.options];
+  const sync = () => { $('span', trigger).textContent = select.selectedOptions[0]?.textContent || ''; };
+
+  const setActive = i => {
+    if (!menu) return; // pointer can still hover options while the menu animates out
+    const items = $$('.dd-option', menu);
+    active = (i + items.length) % items.length;
+    items.forEach((el, n) => el.classList.toggle('is-active', n === active));
+    items[active]?.scrollIntoView({ block: 'nearest' });
+    trigger.setAttribute('aria-activedescendant', items[active]?.id || '');
+  };
+
+  const close = (focus = true) => {
+    if (!menu) return;
+    const el = menu;
+    menu = null;
+    el.classList.add('is-leaving');
+    setTimeout(() => el.remove(), 160);
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.removeAttribute('aria-activedescendant');
+    window.removeEventListener('scroll', onScroll, true);
+    window.removeEventListener('resize', onScroll);
+    document.removeEventListener('pointerdown', onOutside, true);
+    if (focus) trigger.focus();
+  };
+  const onScroll = e => { if (!menu?.contains(e.target)) close(false); };
+  const onOutside = e => { if (!menu?.contains(e.target) && e.target !== trigger && !trigger.contains(e.target)) close(false); };
+
+  const choose = i => {
+    const opt = options()[i];
+    if (opt && select.value !== opt.value) {
+      select.value = opt.value;
+      select.dispatchEvent(new Event('input', { bubbles: true }));
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    sync();
+    close();
+  };
+
+  const open = () => {
+    if (menu) return;
+    menu = h(`<div class="dd-menu glass glass--md" role="listbox" id="${id}-list"></div>`);
+    options().forEach((opt, i) => {
+      const item = h(`<div class="dd-option" role="option" id="${id}-opt-${i}" aria-selected="${opt.selected}"><span></span>${icon('check')}</div>`);
+      item.firstElementChild.textContent = opt.textContent;
+      item.addEventListener('pointerenter', () => setActive(i));
+      item.addEventListener('click', () => choose(i));
+      menu.append(item);
+    });
+    document.body.append(menu);
+    const r = trigger.getBoundingClientRect();
+    const height = Math.min(menu.scrollHeight, 300);
+    const below = innerHeight - r.bottom - 12;
+    const up = below < height && r.top > below;
+    menu.style.cssText = `left:${r.left}px;width:${r.width}px;max-height:${Math.max(160, Math.min(300, (up ? r.top : below) - 8))}px;${up ? `bottom:${innerHeight - r.top + 6}px` : `top:${r.bottom + 6}px`}`;
+    menu.classList.toggle('is-up', up);
+    trigger.setAttribute('aria-expanded', 'true');
+    setActive(Math.max(0, select.selectedIndex));
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onScroll);
+    document.addEventListener('pointerdown', onOutside, true);
+  };
+
+  trigger.addEventListener('click', () => (menu ? close() : open()));
+  trigger.addEventListener('keydown', e => {
+    const keys = { ArrowDown: 1, ArrowUp: -1 };
+    if (!menu) {
+      if (e.key in keys || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+      return;
+    }
+    if (e.key in keys) { e.preventDefault(); setActive(active + keys[e.key]); }
+    else if (e.key === 'Home' || e.key === 'End') { e.preventDefault(); setActive(e.key === 'Home' ? 0 : options().length - 1); }
+    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(active); }
+    else if (e.key === 'Escape') { e.preventDefault(); close(); }
+    else if (e.key === 'Tab') close(false);
+  });
+  select.addEventListener('change', sync);
+  sync();
+  return { trigger, sync };
+}
+
 export function setLoading(btn, on) {
   btn.classList.toggle('is-loading', on);
   btn.disabled = on;
