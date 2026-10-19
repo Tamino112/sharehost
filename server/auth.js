@@ -161,6 +161,8 @@ export function isShareUnlocked(req, share) {
   if (req.user && (req.user.role === 'admin' || req.user.id === share.owner_id)) return true;
   const cookie = req.cookies[`sh_u_${share.id}`];
   if (!cookie) return false;
-  const expected = shareUnlockToken(share.id, share.password_hash);
-  return cookie.length === expected.length && crypto.timingSafeEqual(Buffer.from(cookie), Buffer.from(expected));
+  const actual = Buffer.from(cookie);
+  const expected = Buffer.from(shareUnlockToken(share.id, share.password_hash));
+  // Compare byte lengths: a cookie with non-ASCII characters would otherwise make timingSafeEqual throw.
+  return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
 }

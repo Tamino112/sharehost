@@ -5,7 +5,10 @@ services:
     container_name: sharehost
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      # Only reachable from this machine: the reverse proxy in front forwards to it. Otherwise anyone
+      # could reach the app directly and fake X-Forwarded-For (TRUST_PROXY below) to dodge rate limits.
+      # Without a proxy, use "3000:3000" and remove TRUST_PROXY.
+      - "127.0.0.1:3000:3000"
     volumes:
       - sharehost-data:/data
     environment:

@@ -23,7 +23,7 @@ export const SCHEMA = {
   allowNeverExpire:   { group: 'uploads', type: 'bool', default: false },
   allowPasswordShares:{ group: 'uploads', type: 'bool', default: true },
   allowedExtensions:  { group: 'uploads', type: 'string', default: '', max: 1000, placeholder: 'pdf, zip, png' },
-  blockedExtensions:  { group: 'uploads', type: 'string', default: 'exe, bat, cmd, com, scr, msi, vbs, ps1', max: 1000 },
+  blockedExtensions:  { group: 'uploads', type: 'string', default: 'exe, bat, cmd, com, scr, msi, vbs, ps1, hta, jar, lnk, pif, reg, wsf', max: 1000 },
   requireLoginToDownload: { group: 'uploads', type: 'bool', default: false },
 
   // Guests
@@ -31,6 +31,8 @@ export const SCHEMA = {
   guestMaxFileSizeMB:  { group: 'guests', type: 'int', min: 1, max: 1048576, default: 100, unit: 'MB' },
   guestMaxExpiryHours: { group: 'guests', type: 'int', min: 1, max: 87600, default: 24, unit: 'h' },
   guestMaxFiles:       { group: 'guests', type: 'int', min: 1, max: 10000, default: 10 },
+  // Total space all guest shares together may use (0 = unlimited).
+  guestStorageMB:      { group: 'guests', type: 'int', min: 0, max: 104857600, default: 10240, unit: 'MB' },
 
   // Accounts & security
   registrationMode:    { group: 'access', type: 'enum', values: ['closed', 'invite', 'open'], default: 'closed' },

@@ -99,9 +99,11 @@ const server = app.listen(config.port, config.host, () => {
   console.log(`ShareHost ${config.version} running on http://${config.host === '0.0.0.0' ? 'localhost' : config.host}:${config.port}`);
   console.log(`Data directory: ${config.dataDir}`);
 });
-// Large uploads can take a while; don't cut them off.
+// Large uploads can take a while; don't cut them off as long as data keeps flowing.
 server.requestTimeout = 0;
 server.headersTimeout = 120000;
+// …but drop connections that stall completely, so stuck clients can't hold sockets open forever.
+server.timeout = 120000;
 
 function shutdown() {
   server.close(() => {

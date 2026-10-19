@@ -130,7 +130,8 @@ export function sendPage(res, name, clientConfig, status = 200) {
   ].filter(Boolean).join('\n  ');
 
   const html = pages.get(name)
-    .replace('<html lang="en">', `<html lang="en" ${htmlAttrs}>`)
-    .replace('</head>', `  ${head}\n</head>`);
+    // Replacer functions: a "$'" or "$&" in a setting must not be read as a replacement pattern.
+    .replace('<html lang="en">', () => `<html lang="en" ${htmlAttrs}>`)
+    .replace('</head>', () => `  ${head}\n</head>`);
   res.status(status).set({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, no-cache' }).send(html);
 }
