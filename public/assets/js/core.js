@@ -150,13 +150,14 @@ export function applyAppearance(s) {
   $('.backdrop')?.remove();
 
   const mode = (s.backgroundMode === 'image' && s.backgroundImage) ? 'image'
-    : (s.backgroundMode === 'video' && s.backgroundVideo) ? 'video' : 'aurora';
+    : (s.backgroundMode === 'video' && s.backgroundVideo) ? 'video'
+    : s.backgroundMode === 'none' ? 'none' : 'aurora';
+  // "none" is just the plain page colour: no aurora, grid, dimming, grain or vignette.
   const bd = h(`<div class="backdrop" aria-hidden="true">
-    <div class="aurora"><i></i><i></i><i></i><i></i></div>
-    ${mode === 'aurora' ? '<div class="backdrop__grid"></div>' : '<div class="backdrop__dim"></div>'}
+    ${mode === 'none' ? '' : '<div class="aurora"><i></i><i></i><i></i><i></i></div>'}
+    ${mode === 'aurora' ? '<div class="backdrop__grid"></div>' : mode === 'none' ? '' : '<div class="backdrop__dim"></div>'}
     ${s.cursorGlow ? '<div class="backdrop__spot"></div>' : ''}
-    <div class="backdrop__grain"></div>
-    <div class="backdrop__vignette"></div>
+    ${mode === 'none' ? '' : '<div class="backdrop__grain"></div><div class="backdrop__vignette"></div>'}
   </div>`);
 
   let media = null;

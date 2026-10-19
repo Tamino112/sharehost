@@ -746,6 +746,27 @@ main { flex: 1; padding-block: 112px 64px; }
 .style-preview .uploader .h2 { font-size: 18px; }
 .style-preview .dropzone__icon svg { width: 30px; height: 30px; }
 [data-style]:not([data-style='glass']) .style-preview__blobs { display: none; }
+.style-preview__media { position: absolute; inset: 0; background: center / cover no-repeat; display: none; }
+.style-preview__media::after { content: ''; position: absolute; inset: 0; background: rgb(0 0 0 / var(--dim, .35)); }
+.style-preview[data-bg^='image'] .style-preview__media { display: block; }
+.style-preview:not([data-bg='aurora']) .style-preview__blobs { display: none; }
+
+.bg-picks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 560px) { .bg-picks { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.bg-pick { display: flex; flex-direction: column; gap: 7px; padding: 6px 6px 8px; border: 0; border-radius: var(--r-md); background: var(--field);
+  box-shadow: 0 0 0 1px var(--line) inset; color: var(--ink-2); font: 500 12.5px var(--font); cursor: pointer; text-align: center;
+  transition: background .2s, box-shadow .2s, color .2s; }
+.bg-pick:hover { background: var(--field-hover); color: var(--ink); }
+.bg-pick[aria-pressed='true'] { box-shadow: 0 0 0 1.5px var(--ink-2) inset; background: var(--field-hover); color: var(--ink); }
+.bg-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bg-pick__swatch { display: block; aspect-ratio: 16 / 9; border-radius: calc(var(--r-md) - 4px); background: var(--bg) center / cover no-repeat;
+  box-shadow: 0 0 0 1px var(--line) inset; }
+.bg-pick__swatch--aurora { background:
+  radial-gradient(circle at 15% 10%, #1b4a52, transparent 60%), radial-gradient(circle at 90% 40%, #2b2f3a, transparent 55%),
+  radial-gradient(circle at 45% 110%, #3b3328, transparent 60%), #07080a; }
+[data-theme='light'] .bg-pick__swatch--aurora { background:
+  radial-gradient(circle at 15% 10%, #b5d6d4, transparent 60%), radial-gradient(circle at 90% 40%, #d4d7de, transparent 55%),
+  radial-gradient(circle at 45% 110%, #e6d6bf, transparent 60%), #f4f3ef; }
 .style-preview, .style-preview * { transition: none; }
 
 .toggle-row { display: flex; align-items: center; gap: 16px; justify-content: space-between; padding: 14px 16px; border-radius: var(--r-md); background: var(--field); }

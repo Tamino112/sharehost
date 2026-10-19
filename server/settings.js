@@ -44,7 +44,7 @@ export const SCHEMA = {
   designStyle:      { group: 'appearance', type: 'enum', values: ['glass', 'clean', 'paper', 'bold'], default: 'glass', public: true },
   theme:           { group: 'appearance', type: 'enum', values: ['dark', 'light', 'system'], default: 'dark', public: true },
   accentColor:      { group: 'appearance', type: 'color', default: '#ecebe6', public: true },
-  backgroundMode:   { group: 'appearance', type: 'enum', values: ['aurora', 'image', 'video'], default: 'aurora', public: true },
+  backgroundMode:   { group: 'appearance', type: 'enum', values: ['aurora', 'none', 'image', 'video'], default: 'aurora', public: true },
   backgroundImage:  { group: 'appearance', type: 'media', accept: 'image', default: '', public: true },
   backgroundVideo:  { group: 'appearance', type: 'media', accept: 'video', default: '', public: true },
   backgroundPoster: { group: 'appearance', type: 'media', accept: 'image', default: '', public: true },

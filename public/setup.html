@@ -102,14 +102,27 @@
             <p class="muted" style="margin:0" data-i18n="setup.lookText"></p>
           </div>
           <div class="stack" data-errors>
-            <div class="segmented style-switch" id="style-switch" role="group">
-              <button type="button" data-style-pick="glass" data-i18n="enum.designStyle.glass"></button>
-              <button type="button" data-style-pick="clean" data-i18n="enum.designStyle.clean"></button>
-              <button type="button" data-style-pick="paper" data-i18n="enum.designStyle.paper"></button>
-              <button type="button" data-style-pick="bold" data-i18n="enum.designStyle.bold"></button>
+            <div class="field">
+              <span class="label" data-i18n="settings.designStyle"></span>
+              <div class="segmented style-switch" id="style-switch" role="group">
+                <button type="button" data-style-pick="glass" data-i18n="enum.designStyle.glass"></button>
+                <button type="button" data-style-pick="clean" data-i18n="enum.designStyle.clean"></button>
+                <button type="button" data-style-pick="paper" data-i18n="enum.designStyle.paper"></button>
+                <button type="button" data-style-pick="bold" data-i18n="enum.designStyle.bold"></button>
+              </div>
+            </div>
+            <div class="field">
+              <span class="label" data-i18n="settings.backgroundMode"></span>
+              <div class="bg-picks" id="bg-picks" role="group">
+                <button type="button" class="bg-pick" data-bg-pick="aurora"><i class="bg-pick__swatch bg-pick__swatch--aurora"></i><span data-i18n="setup.bg.aurora"></span></button>
+                <button type="button" class="bg-pick" data-bg-pick="none"><i class="bg-pick__swatch"></i><span data-i18n="setup.bg.none"></span></button>
+                <button type="button" class="bg-pick" data-bg-pick="image:glass"><i class="bg-pick__swatch" style="background-image:url(/assets/backgrounds/glass.webp)"></i><span data-i18n="admin.preset.glass"></span></button>
+                <button type="button" class="bg-pick" data-bg-pick="image:aurora"><i class="bg-pick__swatch" style="background-image:url(/assets/backgrounds/aurora.webp)"></i><span data-i18n="admin.preset.aurora"></span></button>
+              </div>
             </div>
             <figure class="style-preview" id="style-preview" aria-hidden="true">
               <div class="style-preview__stage">
+                <div class="style-preview__media" id="pv-media"></div>
                 <div class="style-preview__blobs"><i></i><i></i><i></i></div>
                 <div class="nav glass">
                   <div class="nav__brand"><img src="/assets/brand/logo.webp" alt=""><span id="pv-name">ShareHost</span></div>

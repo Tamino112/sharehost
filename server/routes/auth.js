@@ -40,9 +40,12 @@ router.get('/api/config', (req, res) => {
   });
 });
 
+// Shipped background images the setup offers besides 'aurora' and 'none' (public/assets/backgrounds).
+const SETUP_BACKGROUNDS = ['image:glass', 'image:aurora'];
+
 // First-run setup: creates the administrator account. Only works while no user exists.
 router.post('/api/setup', setupLimiter, async (req, res) => {
-  const { username, email, password, siteName, registrationMode, guestUploads, language, designStyle } = req.body || {};
+  const { username, email, password, siteName, registrationMode, guestUploads, language, designStyle, background } = req.body || {};
   validateCredentials({ username, password, email });
   const hash = await hashPassword(password);
 
@@ -59,10 +62,16 @@ router.post('/api/setup', setupLimiter, async (req, res) => {
   if (typeof guestUploads === 'boolean') initial.guestUploads = guestUploads;
   if (language) initial.defaultLanguage = language;
   if (designStyle) initial.designStyle = designStyle;
+  if (background === 'aurora' || background === 'none') initial.backgroundMode = background;
   try {
     settings.update(initial);
   } catch (err) {
     throw new HttpError(400, err.message, 'invalid_setting');
+  }
+  // The shipped background images are set directly: uploads need a signed-in admin.
+  if (SETUP_BACKGROUNDS.includes(background)) {
+    settings.setRaw('backgroundImage', `/assets/backgrounds/${background.slice(6)}.webp`);
+    settings.update({ backgroundMode: 'image' });
   }
 
   createSession(req, res, userId);

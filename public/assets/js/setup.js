@@ -8,6 +8,7 @@ const back = $('#back');
 let current = 0;
 const LAST = 3; // the step that submits; the one after it is the success screen
 let designStyle = config.settings?.designStyle || 'glass';
+let background = config.settings?.backgroundMode === 'none' ? 'none' : 'aurora'; // 'aurora' | 'none' | 'image:<preset>'
 
 for (const el of $$('[data-icon]')) el.outerHTML = icon(el.dataset.icon);
 
@@ -46,24 +47,42 @@ $('#lang-switch').addEventListener('click', e => {
   updateStrength();
 });
 
-// Style step: the pick is applied to the whole page right away, and the preview below is a
-// scaled copy of the start page built from the same classes, so both show the real result.
+// Look step: style and background are applied to the whole page right away, and the preview
+// below is a scaled copy of the start page built from the same classes, so both show the real result.
+const appearance = () => background.startsWith('image:')
+  ? { ...config.settings, designStyle, backgroundMode: 'image', backgroundImage: `/assets/backgrounds/${background.slice(6)}.webp` }
+  : { ...config.settings, designStyle, backgroundMode: background };
 function renderStyle() {
   $('#style-switch').setAttribute('aria-label', t('settings.designStyle'));
+  $('#bg-picks').setAttribute('aria-label', t('settings.backgroundMode'));
   for (const b of $$('#style-switch button')) b.setAttribute('aria-pressed', String(b.dataset.stylePick === designStyle));
-  $('#style-hint').textContent = t(`setup.style.${designStyle}`);
+  for (const b of $$('#bg-picks button')) b.setAttribute('aria-pressed', String(b.dataset.bgPick === background));
+  const bg = appearance();
+  $('#style-preview').dataset.bg = background;
+  $('#pv-media').style.backgroundImage = bg.backgroundMode === 'image' ? `url(${bg.backgroundImage})` : '';
+  // The aurora is part of the Glass look; the solid styles show the plain page colour instead.
+  $('#style-hint').textContent = t(`setup.style.${designStyle}`) + (background === 'aurora' && designStyle !== 'glass' ? ` ${t('setup.bg.auroraGlassOnly')}` : '');
   $('#pv-add').innerHTML = `${icon('plus')}<span>${t('upload.choose')}</span>${icon('chevronDown')}`;
   const up = config.upload;
   $('#pv-hint').textContent = up ? t('upload.hint', { size: formatBytes(up.maxFileSizeMB * 1048576, 0), count: formatNumber(up.maxFiles) }) : '';
   $('#pv-name').textContent = $('#site-name').value.trim() || 'ShareHost';
 }
+function applyLook() {
+  const apply = () => { applyAppearance(appearance()); renderStyle(); };
+  if (document.startViewTransition && document.documentElement.dataset.motion !== 'off') document.startViewTransition(apply);
+  else apply();
+}
 $('#style-switch').addEventListener('click', e => {
   const pick = e.target.closest('button')?.dataset.stylePick;
   if (!pick || pick === designStyle) return;
   designStyle = pick;
-  const apply = () => { applyAppearance({ ...config.settings, designStyle }); renderStyle(); };
-  if (document.startViewTransition && document.documentElement.dataset.motion !== 'off') document.startViewTransition(apply);
-  else apply();
+  applyLook();
+});
+$('#bg-picks').addEventListener('click', e => {
+  const pick = e.target.closest('button')?.dataset.bgPick;
+  if (!pick || pick === background) return;
+  background = pick;
+  applyLook();
 });
 $('#pv-icon').innerHTML = icon('cloud');
 // Mirror the start page layout: without the intro it is just the centred uploader.
@@ -105,6 +124,7 @@ async function finish() {
         guestUploads: $('#guest').checked,
         language: state.lang,
         designStyle,
+        background,
       },
     });
     $('#done-badge').innerHTML = '<svg class="check-draw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19.5 7"/></svg>';
