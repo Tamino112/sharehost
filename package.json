@@ -10,11 +10,12 @@
   },
   "scripts": {
     "start": "node --no-warnings=ExperimentalWarning server/index.js",
-    "dev": "node --no-warnings=ExperimentalWarning --watch server/index.js"
+    "dev": "node --no-warnings=ExperimentalWarning --watch-path=server --watch-path=public server/index.js"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/geist-mono": "^5.3.0",
+    "compression": "^1.8.2",
     "express": "^5.3.0",
     "multer": "^2.4.0"
   }

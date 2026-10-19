@@ -1,7 +1,6 @@
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
-import zlib from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
 import { db, now } from './db.js';
 import { config } from './config.js';
@@ -29,12 +28,6 @@ export const extOf = name => (path.extname(name || '').slice(1) || '').toLowerCa
 export const mimeFor = name => MIME[extOf(name)] || 'application/octet-stream';
 export const isInlineSafe = mime => INLINE_SAFE.has(mime);
 export const filePath = storageName => path.join(config.uploadDir, path.basename(storageName));
-
-export async function crc32File(file) {
-  let crc = 0;
-  for await (const chunk of fs.createReadStream(file)) crc = zlib.crc32(chunk, crc);
-  return crc >>> 0;
-}
 
 export async function removeFiles(storageNames) {
   await Promise.all(storageNames.map(n => fsp.rm(filePath(n), { force: true })));

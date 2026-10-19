@@ -1,4 +1,8 @@
+import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
+import { Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { Router } from 'express';
 import multer from 'multer';
 import { db, now, transaction } from '../db.js';
@@ -9,16 +13,37 @@ import {
   shareUnlockToken, isShareUnlocked, cookieOptions,
 } from '../auth.js';
 import {
-  extOf, mimeFor, isInlineSafe, filePath, crc32File, removeFiles, deleteShares, zipPlan, streamZip,
+  extOf, mimeFor, isInlineSafe, filePath, removeFiles, deleteShares, zipPlan, streamZip,
 } from '../storage.js';
 
 const router = Router();
 const MB = 1048576;
 
-const storage = multer.diskStorage({
-  destination: config.uploadDir,
-  filename: (_req, _file, cb) => cb(null, randomId(18)),
-});
+/**
+ * Like multer.diskStorage, but computes the CRC-32 (needed for ZIP downloads) while the file is
+ * written, so large uploads don't have to be read back from disk afterwards.
+ */
+const storage = {
+  _handleFile(_req, file, cb) {
+    const filename = randomId(18);
+    const dest = path.join(config.uploadDir, filename);
+    let crc = 0;
+    let size = 0;
+    const hash = new Transform({
+      transform(chunk, _enc, done) {
+        crc = zlib.crc32(chunk, crc);
+        size += chunk.length;
+        done(null, chunk);
+      },
+    });
+    pipeline(file.stream, hash, fs.createWriteStream(dest))
+      .then(() => cb(null, { destination: config.uploadDir, filename, path: dest, size, crc32: crc >>> 0 }))
+      .catch(err => fs.rm(dest, { force: true }, () => cb(err)));
+  },
+  _removeFile(_req, file, cb) {
+    fs.rm(file.path, { force: true }, cb);
+  },
+};
 
 function cleanName(name) {
   const base = path.basename(String(name || 'file').replace(/\\/g, '/'));
@@ -157,9 +182,6 @@ async function createShare(req, res) {
     if (usedBytes(req.user.id) + total > quotaBytes(req.user)) throw new HttpError(413, 'This upload would exceed your storage quota.', 'quota');
   }
 
-  // One at a time: a folder upload can hold thousands of files, too many to open at once.
-  const crcs = [];
-  for (const f of files) crcs.push(await crc32File(f.path));
   const id = randomId(9);
   const manageToken = guest ? randomId(24) : null;
   // "Download as ZIP" only means something for more than one file.
@@ -171,7 +193,7 @@ async function createShare(req, res) {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(id, req.user?.id ?? null, title, message, passwordHash, expiresAt, maxDownloads, manageToken && sha256(manageToken), req.ip || null, zipFlag, t);
     const insert = db.prepare('INSERT INTO files (id, share_id, name, size, mime, crc32, storage_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-    files.forEach((f, i) => insert.run(randomId(9), id, names[i], f.size, mimeFor(f.originalname), crcs[i], f.filename, t));
+    files.forEach((f, i) => insert.run(randomId(9), id, names[i], f.size, mimeFor(f.originalname), f.crc32, f.filename, t));
   });
 
   res.status(201).json({ id, url: `/s/${id}`, manageToken, expiresAt, fileCount: files.length });

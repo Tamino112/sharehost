@@ -3,7 +3,9 @@ import { init, t, $, $$, icon, api, setLoading, showError, passwordScore } from 
 const page = document.body.dataset.page;
 const config = await init({ page });
 const params = new URLSearchParams(location.search);
-const nextUrl = (params.get('next') || '').startsWith('/') && !params.get('next').startsWith('//') ? params.get('next') : null;
+const nextParam = params.get('next') || '';
+// A server-side redirect can't put the #hash into ?next, but the browser keeps it on this URL.
+const nextUrl = nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam + (nextParam.includes('#') ? '' : location.hash) : null;
 
 for (const el of $$('[data-icon]')) el.innerHTML = icon(el.dataset.icon);
 if (config.user) location.replace(nextUrl || '/dashboard');

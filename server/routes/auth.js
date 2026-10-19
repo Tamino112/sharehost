@@ -15,13 +15,17 @@ const setupLimiter = rateLimit({ windowMs: 15 * 60000, max: 20 });
 
 export const publicUser = u => u && { id: u.id, username: u.username, email: u.email, role: u.role };
 
-// Public instance configuration used by every page.
-router.get('/api/config', (req, res) => {
+// Once an account exists the instance stays set up, so the count is only checked until then.
+let setupDone = false;
+export const setupRequired = () => !(setupDone ||= userCount() > 0);
+
+/** Public instance configuration used by every page (embedded in the HTML, also at /api/config). */
+export function clientConfig(req) {
   const s = settings.all();
   const guest = !req.user;
-  res.json({
+  return {
     version: config.version,
-    setupRequired: userCount() === 0,
+    setupRequired: setupRequired(),
     user: publicUser(req.user),
     settings: settings.publicSettings(),
     upload: {
@@ -37,8 +41,10 @@ router.get('/api/config', (req, res) => {
     },
     registrationMode: s.registrationMode,
     minPasswordLength: s.minPasswordLength,
-  });
-});
+  };
+}
+
+router.get('/api/config', (req, res) => res.json(clientConfig(req)));
 
 // Shipped background images the setup offers besides 'aurora' and 'none' (public/assets/backgrounds).
 const SETUP_BACKGROUNDS = ['image:glass', 'image:aurora'];

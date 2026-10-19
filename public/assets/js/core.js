@@ -509,7 +509,9 @@ function renderFooter() {
 export async function init({ page = '', auth = null } = {}) {
   let config;
   try {
-    config = await api('/api/config');
+    // The server embeds the config in the page; fetching it is only a fallback.
+    const embedded = document.getElementById('sh-config');
+    config = embedded ? JSON.parse(embedded.textContent) : await api('/api/config');
   } catch {
     document.body.innerHTML = '<p style="padding:40px;font-family:system-ui">ShareHost is not reachable. Please try again.</p>';
     throw new Error('config unavailable');
