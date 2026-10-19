@@ -38,6 +38,8 @@ docker compose up -d
 ```
 
 Open <http://localhost:3000> — you'll be taken to the setup wizard to create your admin account.
+Finish the setup before you make the instance public: until an admin account exists, whoever opens it first can create one.
+The compose file only publishes port 3000 on `127.0.0.1`, for a reverse proxy on the same machine (see below).
 All data (database, uploads, branding) lives in the `sharehost-data` volume.
 
 ### Without Docker
@@ -62,7 +64,7 @@ Almost everything is configured in the admin panel. A few things are set through
 | `PORT` | `3000` | HTTP port |
 | `HOST` | `0.0.0.0` | Bind address |
 | `DATA_DIR` | `./data` | Where the database, uploads and branding files are stored |
-| `TRUST_PROXY` | – | Number of reverse proxies in front of ShareHost (e.g. `1`). Needed for correct client IPs and secure cookies behind nginx / Caddy / Traefik |
+| `TRUST_PROXY` | – | Number of reverse proxies in front of ShareHost (e.g. `1`). Needed for correct client IPs and secure cookies behind nginx / Caddy / Traefik. Only set it when the app port is reachable solely through that proxy, otherwise clients can fake their IP and get around rate limits |
 | `SECURE_COOKIES` | auto | Set to `true` to always mark cookies as `Secure` |
 
 ### Reverse proxy

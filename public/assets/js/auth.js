@@ -4,8 +4,19 @@ const page = document.body.dataset.page;
 const config = await init({ page });
 const params = new URLSearchParams(location.search);
 const nextParam = params.get('next') || '';
+// Only same-origin targets: the browser reads "/\\evil.com" or "/<tab>/evil.com" as "//evil.com".
+function sameOriginPath(value) {
+  if (!value.startsWith('/')) return null;
+  try {
+    const url = new URL(value, location.origin);
+    return url.origin === location.origin ? url.pathname + url.search + url.hash : null;
+  } catch {
+    return null;
+  }
+}
+const nextPath = sameOriginPath(nextParam);
 // A server-side redirect can't put the #hash into ?next, but the browser keeps it on this URL.
-const nextUrl = nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam + (nextParam.includes('#') ? '' : location.hash) : null;
+const nextUrl = nextPath ? nextPath + (nextPath.includes('#') ? '' : location.hash) : null;
 
 for (const el of $$('[data-icon]')) el.innerHTML = icon(el.dataset.icon);
 if (config.user) location.replace(nextUrl || '/dashboard');

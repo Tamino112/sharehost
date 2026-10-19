@@ -53,6 +53,20 @@ const SETUP_BACKGROUNDS = ['image:glass', 'image:aurora'];
 router.post('/api/setup', setupLimiter, async (req, res) => {
   const { username, email, password, siteName, registrationMode, guestUploads, language, designStyle, background } = req.body || {};
   validateCredentials({ username, password, email });
+
+  const initial = {};
+  if (typeof siteName === 'string' && siteName.trim()) initial.siteName = siteName;
+  if (registrationMode) initial.registrationMode = registrationMode;
+  if (typeof guestUploads === 'boolean') initial.guestUploads = guestUploads;
+  if (language) initial.defaultLanguage = language;
+  if (designStyle) initial.designStyle = designStyle;
+  if (background === 'aurora' || background === 'none') initial.backgroundMode = background;
+  // Validate before the account exists, so a bad value can't leave setup half done.
+  try {
+    for (const [key, value] of Object.entries(initial)) settings.validate(key, value);
+  } catch (err) {
+    throw new HttpError(400, err.message, 'invalid_setting');
+  }
   const hash = await hashPassword(password);
 
   const userId = transaction(() => {
@@ -62,18 +76,7 @@ router.post('/api/setup', setupLimiter, async (req, res) => {
     return Number(info.lastInsertRowid);
   });
 
-  const initial = {};
-  if (typeof siteName === 'string' && siteName.trim()) initial.siteName = siteName;
-  if (registrationMode) initial.registrationMode = registrationMode;
-  if (typeof guestUploads === 'boolean') initial.guestUploads = guestUploads;
-  if (language) initial.defaultLanguage = language;
-  if (designStyle) initial.designStyle = designStyle;
-  if (background === 'aurora' || background === 'none') initial.backgroundMode = background;
-  try {
-    settings.update(initial);
-  } catch (err) {
-    throw new HttpError(400, err.message, 'invalid_setting');
-  }
+  settings.update(initial);
   // The shipped background images are set directly: uploads need a signed-in admin.
   if (SETUP_BACKGROUNDS.includes(background)) {
     settings.setRaw('backgroundImage', `/assets/backgrounds/${background.slice(6)}.webp`);

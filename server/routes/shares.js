@@ -47,7 +47,8 @@ const storage = {
 
 function cleanName(name) {
   const base = path.basename(String(name || 'file').replace(/\\/g, '/'));
-  const cleaned = base.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 255);
+  // Windows drops trailing dots and spaces, so "evil.exe." must not slip past the extension check.
+  const cleaned = base.replace(/[\u0000-\u001f\u007f]/g, '').replace(/[.\s]+$/, '').trim().slice(0, 255);
   return cleaned || 'file';
 }
 
@@ -94,6 +95,13 @@ function quotaBytes(user) {
   return mb > 0 ? mb * MB : Infinity;
 }
 
+const guestUsedBytes = () => db.prepare('SELECT COALESCE(SUM(f.size), 0) AS n FROM files f JOIN shares s ON s.id = f.share_id WHERE s.owner_id IS NULL').get().n;
+
+function guestQuotaBytes() {
+  const mb = settings.get('guestStorageMB');
+  return mb > 0 ? mb * MB : Infinity;
+}
+
 const uploadLimiter = rateLimit({ windowMs: 60000, max: 30 });
 
 router.post('/api/shares', uploadLimiter, (req, res, next) => {
@@ -101,11 +109,12 @@ router.post('/api/shares', uploadLimiter, (req, res, next) => {
   if (guest && !settings.get('guestUploads')) return next(new HttpError(401, 'Please sign in to upload files.', 'auth_required'));
 
   // Fail fast when the request alone would blow the user's quota.
-  if (!guest) {
-    const declared = Number(req.get('content-length')) || 0;
-    if (usedBytes(req.user.id) + declared > quotaBytes(req.user) + MB) {
-      return next(new HttpError(413, 'This upload would exceed your storage quota.', 'quota'));
-    }
+  const declared = Number(req.get('content-length')) || 0;
+  if (!guest && usedBytes(req.user.id) + declared > quotaBytes(req.user) + MB) {
+    return next(new HttpError(413, 'This upload would exceed your storage quota.', 'quota'));
+  }
+  if (guest && guestUsedBytes() + declared > guestQuotaBytes() + MB) {
+    return next(new HttpError(413, 'Guest uploads are full right now. Please try again later.', 'guest_quota'));
   }
 
   const maxFiles = guest ? settings.get('guestMaxFiles') : settings.get('maxFilesPerShare');
@@ -158,7 +167,8 @@ async function createShare(req, res) {
     passwordHash = await hashPassword(String(body.password));
   }
 
-  const hours = Number(body.expiresInHours ?? settings.get('defaultExpiryHours'));
+  const defaultHours = guest ? Math.min(settings.get('defaultExpiryHours'), settings.get('guestMaxExpiryHours')) : settings.get('defaultExpiryHours');
+  const hours = Number(body.expiresInHours ?? defaultHours);
   let expiresAt;
   if (hours === 0) {
     if (guest || !settings.get('allowNeverExpire')) throw new HttpError(400, 'Shares must have an expiry date.', 'expiry_required');
@@ -177,10 +187,9 @@ async function createShare(req, res) {
     if (!Number.isInteger(maxDownloads) || maxDownloads < 1 || maxDownloads > 1000000) throw new HttpError(400, 'Invalid download limit.');
   }
 
-  if (!guest) {
-    const total = files.reduce((sum, f) => sum + f.size, 0);
-    if (usedBytes(req.user.id) + total > quotaBytes(req.user)) throw new HttpError(413, 'This upload would exceed your storage quota.', 'quota');
-  }
+  const total = files.reduce((sum, f) => sum + f.size, 0);
+  if (!guest && usedBytes(req.user.id) + total > quotaBytes(req.user)) throw new HttpError(413, 'This upload would exceed your storage quota.', 'quota');
+  if (guest && guestUsedBytes() + total > guestQuotaBytes()) throw new HttpError(413, 'Guest uploads are full right now. Please try again later.', 'guest_quota');
 
   const id = randomId(9);
   const manageToken = guest ? randomId(24) : null;
@@ -337,18 +346,21 @@ router.get('/d/:id/:fileId', downloadGuard(async (req, res, share) => {
     throw new HttpError(403, 'This share can only be downloaded as a ZIP.', 'zip_only');
   }
 
+  // A limited share hands out whole files only: otherwise ranges (e.g. "bytes=-<size>") could
+  // fetch the full file again and again without ever counting.
+  const limited = !!share.max_downloads;
   if (preview) {
     res.type(file.mime);
     res.set('Content-Disposition', 'inline');
   } else {
-    // Only count the first request of a (possibly resumed / ranged) download.
+    // HEAD (link scanners) never counts; ranged requests only count when they start a download.
     const range = req.get('range');
-    if (!range || /^bytes=0-/.test(range)) {
+    if (req.method !== 'HEAD' && (limited || !range || /^bytes=\s*0-/.test(range))) {
       if (!countDownload(share, file.id)) throw new HttpError(410, 'Download limit reached.', 'expired');
     }
     res.attachment(path.posix.basename(file.name));
   }
-  res.sendFile(filePath(file.storage_name), { cacheControl: false, headers: { 'Cache-Control': 'private, no-store' } }, err => {
+  res.sendFile(filePath(file.storage_name), { cacheControl: false, acceptRanges: !limited, headers: { 'Cache-Control': 'private, no-store' } }, err => {
     if (err && !res.headersSent) res.status(err.status || 500).end();
   });
 }));
@@ -357,10 +369,11 @@ router.get('/z/:id', downloadGuard(async (req, res, share) => {
   const files = db.prepare('SELECT * FROM files WHERE share_id = ? ORDER BY rowid').all(share.id);
   const plan = zipPlan(files);
   if (!plan.supported) throw new HttpError(413, 'This share is too large to download as a single ZIP.');
-  if (!countDownload(share, null)) throw new HttpError(410, 'Download limit reached.', 'expired');
+  if (req.method !== 'HEAD' && !countDownload(share, null)) throw new HttpError(410, 'Download limit reached.', 'expired');
   const base = (share.title || `share-${share.id}`).replace(/[\\/:*?"<>|]/g, '_');
   res.attachment(`${base}.zip`);
   res.set({ 'Content-Type': 'application/zip', 'Content-Length': String(plan.total), 'Cache-Control': 'private, no-store' });
+  if (req.method === 'HEAD') return res.end();
   await streamZip(plan, res).catch(() => res.destroy());
 }));
 

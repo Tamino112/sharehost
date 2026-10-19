@@ -184,6 +184,7 @@ router.patch('/api/admin/users/:id', async (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
   if (!user) throw new HttpError(404, 'User not found.');
   const b = req.body || {};
+  if (b.disabled !== undefined && typeof b.disabled !== 'boolean') throw new HttpError(400, 'disabled must be true or false.');
   const losesAdmin = (b.role && b.role !== 'admin') || b.disabled === true;
   if (user.role === 'admin' && losesAdmin && otherActiveAdmins(id) === 0) {
     throw new HttpError(400, 'There must always be at least one active administrator.', 'last_admin');
@@ -193,7 +194,7 @@ router.patch('/api/admin/users/:id', async (req, res) => {
     if (!['admin', 'user'].includes(b.role)) throw new HttpError(400, 'Invalid role.');
     updates.role = b.role;
   }
-  if (b.disabled !== undefined) updates.disabled = b.disabled ? 1 : 0;
+  if (b.disabled !== undefined) updates.disabled = b.disabled ? 1 : 0; // boolean, checked above
   if (b.quotaMB !== undefined) updates.quota_mb = parseQuota(b.quotaMB);
   if (b.email !== undefined) {
     validateEmail(b.email);
