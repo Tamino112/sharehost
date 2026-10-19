@@ -36,8 +36,9 @@
               <div class="h2" data-i18n="upload.drop"></div>
               <div class="muted small" id="drop-hint"></div>
               <div class="row pick-btns">
-                <button type="button" class="btn btn--sm" id="files-btn"></button>
-                <button type="button" class="btn btn--sm" id="folder-btn"></button>
+                <div class="menu pick-menu" id="pick-menu">
+                  <button type="button" class="btn btn--sm" id="add-btn" aria-haspopup="menu" aria-expanded="false"></button>
+                </div>
               </div>
             </div>
             <input type="file" id="file-input" multiple hidden>
@@ -78,6 +79,14 @@
                 </div>
               </div>
             </div>
+          </div>
+
+          <div class="toggle-row" id="zip-row" hidden>
+            <div class="stack" style="--gap:2px">
+              <strong class="h3" id="zip-label" data-i18n="upload.zipTitle"></strong>
+              <span class="hint" data-i18n="upload.zipHint"></span>
+            </div>
+            <label class="switch"><input type="checkbox" id="opt-zip" checked aria-labelledby="zip-label"><span></span></label>
           </div>
 
           <p class="hint" id="upload-notice" hidden style="padding:0 8px;margin:0"></p>

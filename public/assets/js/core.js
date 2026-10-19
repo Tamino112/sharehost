@@ -139,9 +139,10 @@ export function applyAppearance(s) {
   root.style.setProperty('--blur', `${s.glassBlur}px`);
   root.style.setProperty('--dim', String(s.backgroundDim / 100));
   root.dataset.theme = resolveTheme(s.theme);
+  root.dataset.style = s.designStyle || 'glass';
   root.dataset.motion = s.animations ? 'on' : 'off';
   const meta = $('meta[name="theme-color"]');
-  if (meta) meta.content = root.dataset.theme === 'light' ? '#e7e9e3' : '#07080a';
+  if (meta) meta.content = getComputedStyle(root).getPropertyValue('--bg').trim();
 
   const key = [s.backgroundMode, s.backgroundImage, s.backgroundVideo, s.backgroundPoster, s.cursorGlow, s.animations].join('|');
   if (key === backdropKey) return;
@@ -494,7 +495,7 @@ function renderFooter() {
     <nav>
       ${s.imprintUrl ? `<a href="${esc(s.imprintUrl)}" rel="noopener" data-i18n="footer.imprint"></a>` : ''}
       ${s.privacyUrl ? `<a href="${esc(s.privacyUrl)}" rel="noopener" data-i18n="footer.privacy"></a>` : ''}
-      <a href="${PROJECT_URL}" target="_blank" rel="noopener" class="row" style="--gap:6px"><span data-i18n="footer.powered"></span> <span class="mono">ShareHost ${esc(state.config.version)}</span></a>
+      ${s.showPoweredBy ? `<a href="${PROJECT_URL}" target="_blank" rel="noopener" class="row" style="--gap:6px"><span data-i18n="footer.powered"></span> <span class="mono">ShareHost ${esc(state.config.version)}</span></a>` : ''}
     </nav>
   </div></footer>`);
   document.body.append(footer);
@@ -515,8 +516,9 @@ export async function init({ page = '', auth = null } = {}) {
   state.config = config;
 
   let lang = null;
-  try { lang = localStorage.getItem('sh_lang'); } catch { /* ignore */ }
-  setLang(lang || config.settings.defaultLanguage);
+  // The first-run setup always opens in English; its language switch decides from there.
+  if (!(config.setupRequired && page === 'setup')) try { lang = localStorage.getItem('sh_lang'); } catch { /* ignore */ }
+  setLang(lang || (config.setupRequired ? 'en' : config.settings.defaultLanguage));
   applyAppearance(config.settings);
 
   if (config.setupRequired && page !== 'setup') { location.replace('/setup'); return new Promise(() => {}); }

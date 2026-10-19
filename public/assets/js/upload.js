@@ -43,7 +43,9 @@ function show(name) {
 }
 
 if (!up.allowed) {
-  $('.hero__stats').hidden = true;
+  // The stats live in the intro, which is gone when the minimal start page is on.
+  const stats = $('.hero__stats');
+  if (stats) stats.hidden = true;
   $('#locked-icon').innerHTML = icon('lock');
   if (config.registrationMode === 'open') $('#locked-register').hidden = false;
   show('locked');
@@ -191,6 +193,7 @@ function renderFiles() {
   const total = files.reduce((sum, f) => sum + f.file.size, 0);
   dropzone.classList.toggle('is-compact', files.length > 0);
   $('#options-wrap').hidden = files.length === 0;
+  $('#zip-row').hidden = files.length < 2;
   uploadBtn.disabled = files.length === 0;
   uploadBtn.innerHTML = files.length
     ? `${icon('upload')}<span>${esc(t(files.length === 1 ? 'upload.btnOne' : 'upload.btnMany', { count: files.length, size: formatBytes(total) }))}</span>`
@@ -205,23 +208,50 @@ function updateSummary() {
   $('#options-summary').textContent = `· ${parts.join(' · ')}`;
 }
 
-dropzone.addEventListener('click', () => input.click());
-dropzone.addEventListener('keydown', e => { if (e.target === dropzone && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); input.click(); } });
-$('#files-btn').innerHTML = `${icon('file')}<span>${esc(t('upload.chooseFiles'))}</span>`;
-$('#files-btn').addEventListener('click', e => { e.stopPropagation(); input.click(); });
-// Browsers can't offer files and folders in one dialog, hence two buttons.
-$('#folder-btn').innerHTML = `${icon('folder')}<span>${esc(t('upload.chooseFolder'))}</span>`;
 // Chromium blocks reading a folder's files once its <input> is cleared or re-used for another
 // folder, so every folder pick gets its own input, kept until the upload is finished. They live
 // outside the dropzone so their click doesn't bubble into it and open the regular file dialog.
 const folderPickers = $('#folder-pickers');
-$('#folder-btn').addEventListener('click', e => {
-  e.stopPropagation();
+function pickFolder() {
   const picker = h('<input type="file" webkitdirectory multiple>');
   picker.addEventListener('change', () => addFiles(asEntries(picker.files)));
   folderPickers.append(picker);
   picker.click();
-});
+}
+
+// Browsers can't offer files and folders in one dialog, so one button opens a small menu with
+// both. Picks add up, so files and folders end up in the same share (drag & drop takes both at once).
+const pickMenu = $('#pick-menu');
+const addBtn = $('#add-btn');
+addBtn.innerHTML = `${icon('plus')}<span>${esc(t('upload.choose'))}</span>${icon('chevronDown')}`;
+function closePickMenu() {
+  $('.menu__panel', pickMenu)?.remove();
+  addBtn.setAttribute('aria-expanded', 'false');
+}
+function togglePickMenu() {
+  if ($('.menu__panel', pickMenu)) return closePickMenu();
+  const panel = h(`<div class="menu__panel glass" role="menu">
+    <button type="button" class="menu__item" role="menuitem" data-pick="files">${icon('file')}<span>${esc(t('upload.chooseFiles'))}</span></button>
+    <button type="button" class="menu__item" role="menuitem" data-pick="folder">${icon('folder')}<span>${esc(t('upload.chooseFolder'))}</span></button>
+  </div>`);
+  panel.addEventListener('click', ev => {
+    ev.stopPropagation();
+    const pick = ev.target.closest('[data-pick]')?.dataset.pick;
+    if (!pick) return;
+    closePickMenu();
+    if (pick === 'files') input.click();
+    else pickFolder();
+  });
+  pickMenu.append(panel);
+  addBtn.setAttribute('aria-expanded', 'true');
+  $('.menu__item', panel).focus();
+}
+// The whole dropzone opens the menu too: the plain file dialog can't pick folders, which is confusing.
+addBtn.addEventListener('click', e => { e.stopPropagation(); togglePickMenu(); });
+dropzone.addEventListener('click', e => { e.stopPropagation(); togglePickMenu(); });
+dropzone.addEventListener('keydown', e => { if (e.target === dropzone && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); togglePickMenu(); } });
+document.addEventListener('click', e => { if (!pickMenu.contains(e.target)) closePickMenu(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('.menu__panel', pickMenu)) { closePickMenu(); addBtn.focus(); } });
 input.addEventListener('change', () => { addFiles(asEntries(input.files)); input.value = ''; });
 
 // Drag & drop anywhere on the page
@@ -285,6 +315,7 @@ uploadBtn.addEventListener('click', () => {
   if ($('#opt-password')?.value) form.append('password', $('#opt-password').value);
   if ($('#opt-title').value.trim()) form.append('title', $('#opt-title').value.trim());
   if ($('#opt-message').value.trim()) form.append('message', $('#opt-message').value.trim());
+  if (files.length > 1 && $('#opt-zip').checked) form.append('zipOnly', '1');
   form.append('paths', JSON.stringify(files.map(f => f.path)));
   for (const { file } of files) form.append('files', file, file.name);
 
@@ -365,6 +396,7 @@ $('#again-btn').addEventListener('click', () => {
   files.length = 0;
   folderPickers.replaceChildren();
   for (const id of ['#opt-title', '#opt-message', '#opt-max', '#opt-password']) if ($(id)) $(id).value = '';
+  $('#opt-zip').checked = true;
   renderFiles();
   show('pick');
 });

@@ -40,7 +40,9 @@ export const SCHEMA = {
   loginRateLimit:      { group: 'access', type: 'int', min: 3, max: 1000, default: 10 },
 
   // Appearance
-  theme:            { group: 'appearance', type: 'enum', values: ['dark', 'light', 'system'], default: 'dark', public: true },
+  // glass = frosted surfaces over an animated backdrop; the others use solid surfaces.
+  designStyle:      { group: 'appearance', type: 'enum', values: ['glass', 'clean', 'paper', 'bold'], default: 'glass', public: true },
+  theme:           { group: 'appearance', type: 'enum', values: ['dark', 'light', 'system'], default: 'dark', public: true },
   accentColor:      { group: 'appearance', type: 'color', default: '#ecebe6', public: true },
   backgroundMode:   { group: 'appearance', type: 'enum', values: ['aurora', 'image', 'video'], default: 'aurora', public: true },
   backgroundImage:  { group: 'appearance', type: 'media', accept: 'image', default: '', public: true },
@@ -57,6 +59,7 @@ export const SCHEMA = {
   imprintUrl: { group: 'legal', type: 'string', default: '', max: 300, placeholder: 'https://example.com/imprint', public: true },
   privacyUrl: { group: 'legal', type: 'string', default: '', max: 300, placeholder: 'https://example.com/privacy', public: true },
   footerText: { group: 'legal', type: 'string', default: '', max: 200, public: true },
+  showPoweredBy: { group: 'legal', type: 'bool', default: true, public: true },
   uploadNotice: { group: 'legal', type: 'text', default: '', max: 500, public: true },
 };
 

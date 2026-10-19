@@ -1,4 +1,4 @@
-import { init, t, $, $$, icon, api, applyI18n, setLang, state, setLoading, showError, passwordScore } from './core.js';
+import { init, t, $, $$, icon, api, applyI18n, setLang, state, setLoading, showError, passwordScore, applyAppearance, formatBytes, formatNumber } from './core.js';
 
 const config = await init({ page: 'setup' });
 const steps = $$('.setup__step');
@@ -6,18 +6,21 @@ const bars = $$('.setup__progress i');
 const next = $('#next');
 const back = $('#back');
 let current = 0;
+const LAST = 3; // the step that submits; the one after it is the success screen
+let designStyle = config.settings?.designStyle || 'glass';
 
 for (const el of $$('[data-icon]')) el.outerHTML = icon(el.dataset.icon);
 
 function renderButtons() {
-  back.hidden = current === 0 || current === 3;
-  $('#foot').hidden = current === 3;
+  back.hidden = current === 0 || current > LAST;
+  $('#foot').hidden = current > LAST;
   back.innerHTML = `${icon('arrowLeft')}<span>${t('common.back')}</span>`;
-  const label = current === 2 ? t('setup.finish') : current === 0 ? t('setup.start') : t('common.continue');
-  next.innerHTML = `<span>${label}</span>${icon(current === 2 ? 'check' : 'arrowRight')}`;
+  const label = current === LAST ? t('setup.finish') : current === 0 ? t('setup.start') : t('common.continue');
+  next.innerHTML = `<span>${label}</span>${icon(current === LAST ? 'check' : 'arrowRight')}`;
   bars.forEach((b, i) => b.classList.toggle('is-done', i <= current));
   $('#to-admin').innerHTML = `${icon('settings')}<span>${t('setup.toAdmin')}</span>`;
   for (const b of $$('#lang-switch button')) b.setAttribute('aria-pressed', String(b.dataset.lang === state.lang));
+  renderStyle();
 }
 
 function go(to) {
@@ -43,6 +46,31 @@ $('#lang-switch').addEventListener('click', e => {
   updateStrength();
 });
 
+// Style step: the pick is applied to the whole page right away, and the preview below is a
+// scaled copy of the start page built from the same classes, so both show the real result.
+function renderStyle() {
+  $('#style-switch').setAttribute('aria-label', t('settings.designStyle'));
+  for (const b of $$('#style-switch button')) b.setAttribute('aria-pressed', String(b.dataset.stylePick === designStyle));
+  $('#style-hint').textContent = t(`setup.style.${designStyle}`);
+  $('#pv-add').innerHTML = `${icon('plus')}<span>${t('upload.choose')}</span>${icon('chevronDown')}`;
+  const up = config.upload;
+  $('#pv-hint').textContent = up ? t('upload.hint', { size: formatBytes(up.maxFileSizeMB * 1048576, 0), count: formatNumber(up.maxFiles) }) : '';
+  $('#pv-name').textContent = $('#site-name').value.trim() || 'ShareHost';
+}
+$('#style-switch').addEventListener('click', e => {
+  const pick = e.target.closest('button')?.dataset.stylePick;
+  if (!pick || pick === designStyle) return;
+  designStyle = pick;
+  const apply = () => { applyAppearance({ ...config.settings, designStyle }); renderStyle(); };
+  if (document.startViewTransition && document.documentElement.dataset.motion !== 'off') document.startViewTransition(apply);
+  else apply();
+});
+$('#pv-icon').innerHTML = icon('cloud');
+// Mirror the start page layout: without the intro it is just the centred uploader.
+if (!config.settings?.showIntro) { $('#style-preview .hero__copy').remove(); $('#style-preview .hero').classList.add('is-minimal'); }
+const preview = $('#style-preview');
+new ResizeObserver(([entry]) => preview.style.setProperty('--pv-scale', String(entry.contentRect.width / 880))).observe(preview);
+
 const pw = $('#password');
 function updateStrength() {
   $('#strength').dataset.score = passwordScore(pw.value);
@@ -63,7 +91,7 @@ function validateAccount() {
 }
 
 async function finish() {
-  const box = $('[data-errors]', steps[2]);
+  const box = $('[data-errors]', steps[LAST]);
   setLoading(next, true);
   try {
     await api('/api/setup', {
@@ -76,6 +104,7 @@ async function finish() {
         registrationMode: $('input[name=reg]:checked').value,
         guestUploads: $('#guest').checked,
         language: state.lang,
+        designStyle,
       },
     });
     $('#done-badge').innerHTML = '<svg class="check-draw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19.5 7"/></svg>';
@@ -86,7 +115,7 @@ async function finish() {
       if (i % 3 === 0) p.style.background = 'var(--ink)';
       $('#burst').append(p);
     }
-    go(3);
+    go(LAST + 1);
   } catch (err) {
     if (err.code === 'setup_done') return location.replace('/');
     const accountError = ['invalid_username', 'invalid_email', 'weak_password'].includes(err.code);
@@ -99,7 +128,8 @@ async function finish() {
 next.addEventListener('click', () => {
   if (current === 0) go(1);
   else if (current === 1 && validateAccount()) go(2);
-  else if (current === 2) finish();
+  else if (current === 2) go(3);
+  else if (current === LAST) finish();
 });
 back.addEventListener('click', () => go(current - 1));
 $('#setup-form').addEventListener('submit', e => { e.preventDefault(); next.click(); });

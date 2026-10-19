@@ -76,7 +76,7 @@ function renderShare(share) {
     </div>
     <div class="share-files"></div>
     <div class="share-foot">
-      ${share.zip ? `<a class="btn btn--primary btn--lg" href="/z/${encodeURIComponent(share.id)}" download>${icon('archive')}<span data-i18n="share.downloadAll"></span></a>` : ''}
+      ${share.zip ? `<a class="btn btn--primary btn--lg" href="/z/${encodeURIComponent(share.id)}" download>${icon('archive')}<span data-i18n="${share.zipOnly ? 'share.downloadZip' : 'share.downloadAll'}"></span></a>` : ''}
       <button class="btn btn--lg" data-act="copy">${icon('link')}<span data-i18n="share.copyLink"></span></button>
       <span class="grow"></span>
       ${share.canDelete ? `<button class="btn btn--ghost btn--danger btn--icon" data-act="delete" data-i18n-title="common.delete">${icon('trash')}</button>` : ''}
@@ -91,7 +91,7 @@ function renderShare(share) {
       <div class="file-thumb ${f.preview ? 'is-previewable' : ''}" ${f.preview ? 'role="button" tabindex="0"' : ''}>${icon(fileIcon(f.mime, f.name))}</div>
       <div class="file-meta"><div class="file-name"></div><div class="file-size"></div></div>
       ${f.preview ? `<button class="btn btn--ghost btn--icon btn--sm" data-act="preview" data-i18n-title="share.preview">${icon(f.mime.startsWith('image/') ? 'eye' : 'play')}</button>` : ''}
-      <a class="btn btn--sm" href="${fileUrl(f)}" download="${esc(baseName(f.name))}">${icon('download')}<span class="hide-sm" data-i18n="share.download"></span></a>
+      ${share.zipOnly ? '' : `<a class="btn btn--sm" href="${fileUrl(f)}" download="${esc(baseName(f.name))}">${icon('download')}<span class="hide-sm" data-i18n="share.download"></span></a>`}
     </div>`);
     $('.file-name', row).textContent = baseName(f.name);
     // Files from a folder upload show the folder they came from next to the size.
@@ -105,7 +105,7 @@ function renderShare(share) {
       img.src = fileUrl(f, true);
       img.onload = () => $('.file-thumb', row).replaceChildren(img);
     }
-    const open = () => openPreview(f, fileUrl(f, true), fileUrl(f));
+    const open = () => openPreview(f, fileUrl(f, true), share.zipOnly ? null : fileUrl(f));
     row.addEventListener('click', e => { if (e.target.closest('[data-act="preview"], .is-previewable')) open(); });
     row.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.classList.contains('is-previewable')) open(); });
     list.append(row);
@@ -134,7 +134,7 @@ function openPreview(file, src, dl) {
     ${media}
     <div class="row row--between" style="padding:4px 8px 6px">
       <span class="truncate grow" data-name></span>
-      <div class="row" style="--gap:6px"><a class="btn btn--sm" href="${dl}" download>${icon('download')}<span data-i18n="share.download"></span></a>
+      <div class="row" style="--gap:6px">${dl ? `<a class="btn btn--sm" href="${dl}" download>${icon('download')}<span data-i18n="share.download"></span></a>` : ''}
       <button class="btn btn--ghost btn--icon btn--sm" data-close data-i18n-title="common.close">${icon('x')}</button></div>
     </div>
   </div>`, { wide: true });

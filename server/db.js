@@ -77,6 +77,10 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 `);
 
+// Columns added after the first release; CREATE TABLE IF NOT EXISTS doesn't touch existing tables.
+const hasColumn = (table, column) => db.prepare(`PRAGMA table_info(${table})`).all().some(c => c.name === column);
+if (!hasColumn('shares', 'zip_only')) db.exec('ALTER TABLE shares ADD COLUMN zip_only INTEGER NOT NULL DEFAULT 0');
+
 export function transaction(fn) {
   db.exec('BEGIN IMMEDIATE');
   try {

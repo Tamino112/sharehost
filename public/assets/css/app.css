@@ -585,6 +585,10 @@ main { flex: 1; padding-block: 112px 64px; }
 .dropzone.is-compact { min-height: 120px; flex-direction: row; gap: 16px; text-align: left; }
 .pick-btns { --gap: 8px; justify-content: center; margin-top: 6px; position: relative; z-index: 1; }
 .dropzone.is-compact .pick-btns { justify-content: flex-start; margin-top: 2px; }
+.dropzone:has(.menu__panel) { overflow: visible; z-index: 3; }
+.pick-btns .btn > svg:last-child { width: 14px; height: 14px; margin-left: -2px; opacity: .7; }
+.pick-menu .menu__panel { left: 50%; right: auto; translate: -50% 0; top: calc(100% + 8px); min-width: 210px; transform-origin: top center; text-align: left; }
+.dropzone.is-compact .pick-menu .menu__panel { left: 0; translate: none; transform-origin: top left; }
 
 .dropzone__icon {
   width: 74px; height: 74px; border-radius: 24px; display: grid; place-items: center;
@@ -714,6 +718,35 @@ main { flex: 1; padding-block: 112px 64px; }
 .choice:has(input:checked) { box-shadow: 0 0 0 1.5px var(--ink-2) inset; background: var(--field-hover); }
 .choice:has(input:checked) svg { color: var(--ink); }
 .choice:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Setup → look: a scaled-down copy of the start page, built from the real classes so it follows data-style */
+.style-switch { align-self: flex-start; max-width: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+@media (max-width: 420px) { .style-switch button { padding-inline: 11px; } }
+.style-preview { margin: 0; position: relative; aspect-ratio: 880 / 470; border-radius: var(--r-lg); overflow: hidden;
+  background: var(--bg); box-shadow: 0 0 0 1px var(--line) inset; container-type: inline-size; }
+.style-preview__stage { position: absolute; top: 0; left: 0; width: 880px; height: 470px; padding: 18px 26px; transform-origin: 0 0;
+  transform: scale(var(--pv-scale, .6)); display: flex; flex-direction: column; gap: 34px; pointer-events: none; user-select: none; }
+.style-preview__stage * { animation: none !important; }
+.style-preview__blobs { position: absolute; inset: 0; filter: blur(50px); opacity: .9; }
+.style-preview__blobs i { position: absolute; width: 380px; height: 380px; border-radius: 50%; }
+.style-preview__blobs i:nth-child(1) { left: -120px; top: -160px; background: radial-gradient(circle, #1b4a52, transparent 62%); }
+.style-preview__blobs i:nth-child(2) { right: -100px; top: 40px; background: radial-gradient(circle, #2b2f3a, transparent 60%); }
+.style-preview__blobs i:nth-child(3) { left: 280px; bottom: -220px; background: radial-gradient(circle, #3b3328, transparent 60%); }
+:root[data-theme='light'] .style-preview__blobs { opacity: .35; }
+.style-preview .nav { position: relative; top: auto; left: auto; translate: none; width: auto; z-index: 1; }
+.style-preview .nav__links { margin-right: 6px; }
+.style-preview .hero { position: relative; min-height: 0; gap: 40px; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); }
+.style-preview .hero__copy { gap: 18px; }
+.style-preview .hero.is-minimal { grid-template-columns: minmax(0, 1fr); justify-items: center; min-height: 0; }
+.style-preview .hero.is-minimal .uploader { width: 520px; }
+.style-preview .hero.is-minimal .dropzone { min-height: 250px; }
+.style-preview .display { font-size: 58px; }
+.style-preview .lead { font-size: 15px; }
+.style-preview .dropzone { min-height: 220px; }
+.style-preview .uploader .h2 { font-size: 18px; }
+.style-preview .dropzone__icon svg { width: 30px; height: 30px; }
+[data-style]:not([data-style='glass']) .style-preview__blobs { display: none; }
+.style-preview, .style-preview * { transition: none; }
 
 .toggle-row { display: flex; align-items: center; gap: 16px; justify-content: space-between; padding: 14px 16px; border-radius: var(--r-md); background: var(--field); }
 
@@ -901,3 +934,159 @@ main { flex: 1; padding-block: 112px 64px; }
 @media (max-width: 560px) { .hide-sm { display: none !important; } }
 .not-found { font-size: clamp(120px, 26vw, 260px); line-height: .8; letter-spacing: -0.08em; font-weight: 600; margin: 0;
   background: linear-gradient(180deg, var(--ink), transparent 95%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* ------------------------------------------------------------------ Design styles
+   data-style picks the look (Admin → Appearance). "glass" is everything above; the solid styles
+   below swap the glass tokens for opaque surfaces and drop the blur, aurora and cursor effects.
+   Dark variants are scoped with :not([data-theme='light']) so they never beat the light theme. */
+
+[data-style]:not([data-style='glass']) .glass { -webkit-backdrop-filter: none; backdrop-filter: none; }
+[data-style]:not([data-style='glass']) .glass[data-glow]::after,
+[data-style]:not([data-style='glass']) .aurora,
+[data-style]:not([data-style='glass']) .backdrop__grid,
+[data-style]:not([data-style='glass']) .backdrop__spot,
+[data-style]:not([data-style='glass']) .backdrop__grain,
+[data-style]:not([data-style='glass']) .backdrop__vignette,
+[data-style]:not([data-style='glass']) .dropzone::before { display: none; }
+[data-style]:not([data-style='glass']) .dd-menu { background: var(--glass-bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
+[data-style]:not([data-style='glass']) .nav__links.is-open { background: var(--glass-bg); }
+[data-style]:not([data-style='glass']) .dropzone__icon,
+[data-style]:not([data-style='glass']) .lock-icon,
+[data-style]:not([data-style='glass']) .setup__logo,
+[data-style]:not([data-style='glass']) .empty .icon-tile { animation: none; }
+/* Plain fades instead of the blur-in reveals */
+[data-style]:not([data-style='glass']) [data-reveal] { filter: none !important; }
+[data-style]:not([data-style='glass']) .split-word { animation-name: word-in-plain; }
+@keyframes word-in-plain { from { opacity: 0; transform: translateY(.2em); } }
+[data-style]:not([data-style='glass']) .auth-card, [data-style]:not([data-style='glass']) .setup, [data-style]:not([data-style='glass']) .share-card { animation-name: card-in-plain; }
+@keyframes card-in-plain { from { opacity: 0; transform: translateY(14px); } }
+[data-style]:not([data-style='glass'])::view-transition-old(root) { animation: 160ms ease both fade-out; }
+[data-style]:not([data-style='glass'])::view-transition-new(root) { animation: 220ms ease both fade; }
+@keyframes fade-out { to { opacity: 0; } }
+/* Pills become rounded rectangles */
+[data-style]:not([data-style='glass']) :is(.btn, .segmented, .segmented button, .nav__link, .link-box, .code-pill, .toast) { border-radius: var(--r-ctl); }
+[data-style]:not([data-style='glass']) .nav { border-radius: var(--r-lg); }
+[data-style]:not([data-style='glass']) .savebar { border-radius: var(--r-lg); }
+[data-style]:not([data-style='glass']) .btn--primary { box-shadow: none; }
+
+/* Clean — quiet, flat, neutral */
+:root[data-style='clean'] {
+  --r-xl: 16px; --r-lg: 12px; --r-md: 10px; --r-sm: 8px; --r-ctl: 8px;
+  --bg: #f6f6f5;
+  --ink: #18181b;
+  --ink-2: rgb(24 24 27 / .66);
+  --ink-3: rgb(24 24 27 / .45);
+  --line: rgb(24 24 27 / .09);
+  --line-2: rgb(24 24 27 / .16);
+  --field: rgb(24 24 27 / .035);
+  --field-hover: rgb(24 24 27 / .06);
+  --glass-bg: #ffffff;
+  --glass-edge: rgb(24 24 27 / .1);
+  --glass-shadow: 0 1px 2px rgb(24 24 27 / .05), 0 8px 24px -16px rgb(24 24 27 / .14);
+  color-scheme: light;
+}
+:root[data-style='clean']:not([data-theme='light']) {
+  --bg: #111113;
+  --ink: #ededee;
+  --ink-2: rgb(237 237 238 / .64);
+  --ink-3: rgb(237 237 238 / .42);
+  --line: rgb(255 255 255 / .08);
+  --line-2: rgb(255 255 255 / .15);
+  --field: rgb(255 255 255 / .04);
+  --field-hover: rgb(255 255 255 / .07);
+  --glass-bg: #19191c;
+  --glass-edge: rgb(255 255 255 / .08);
+  --glass-shadow: 0 1px 2px rgb(0 0 0 / .4);
+  color-scheme: dark;
+}
+[data-style='clean'] .dropzone::after { border-style: dashed; border-width: 1px; }
+
+/* Paper — warm tones, serif headings, editorial */
+:root[data-style='paper'] {
+  --r-xl: 14px; --r-lg: 10px; --r-md: 8px; --r-sm: 6px; --r-ctl: 6px;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, ui-serif, serif;
+  --bg: #f1ece1;
+  --ink: #2a251d;
+  --ink-2: rgb(42 37 29 / .68);
+  --ink-3: rgb(42 37 29 / .48);
+  --line: rgb(42 37 29 / .12);
+  --line-2: rgb(42 37 29 / .22);
+  --field: rgb(42 37 29 / .04);
+  --field-hover: rgb(42 37 29 / .075);
+  --glass-bg: #fbf8f2;
+  --glass-edge: rgb(42 37 29 / .14);
+  --glass-shadow: 0 1px 0 rgb(42 37 29 / .05), 0 14px 30px -22px rgb(70 50 20 / .4);
+  color-scheme: light;
+}
+:root[data-style='paper']:not([data-theme='light']) {
+  --bg: #1b1915;
+  --ink: #ece4d4;
+  --ink-2: rgb(236 228 212 / .68);
+  --ink-3: rgb(236 228 212 / .45);
+  --line: rgb(236 228 212 / .1);
+  --line-2: rgb(236 228 212 / .18);
+  --field: rgb(236 228 212 / .045);
+  --field-hover: rgb(236 228 212 / .08);
+  --glass-bg: #23201b;
+  --glass-edge: rgb(236 228 212 / .1);
+  --glass-shadow: 0 14px 30px -22px rgb(0 0 0 / .7);
+  color-scheme: dark;
+}
+[data-style='paper'] :is(.display, .h1, .h2, .nav__brand, .stat__value, .ring__label, .not-found) {
+  font-family: var(--serif); letter-spacing: -0.01em; font-weight: 600;
+}
+[data-style='paper'] .display { letter-spacing: -0.025em; line-height: 1; }
+[data-style='paper'] :is(.eyebrow, .stat__label, .sidebar__group, .table th, .hero__stats span) { letter-spacing: .08em; }
+[data-style='paper'] .dropzone::after { border-style: dashed; border-width: 1px; }
+[data-style='paper'] .dropzone__icon { border-radius: 50%; }
+
+/* Bold — hard edges, thick outlines, offset shadows */
+:root[data-style='bold'] {
+  --r-xl: 6px; --r-lg: 4px; --r-md: 4px; --r-sm: 3px; --r-ctl: 3px;
+  --bg: #f2f0ea;
+  --ink: #111111;
+  --ink-2: rgb(17 17 17 / .72);
+  --ink-3: rgb(17 17 17 / .52);
+  --line: rgb(17 17 17 / .55);
+  --line-2: #111111;
+  --field: #ffffff;
+  --field-hover: #e9e6dd;
+  --glass-bg: #ffffff;
+  --glass-edge: #111111;
+  --hard: #111111;
+  --glass-shadow: 5px 5px 0 var(--hard);
+  color-scheme: light;
+}
+:root[data-style='bold']:not([data-theme='light']) {
+  --bg: #121212;
+  --ink: #f4f3ee;
+  --ink-2: rgb(244 243 238 / .72);
+  --ink-3: rgb(244 243 238 / .5);
+  --line: rgb(244 243 238 / .45);
+  --line-2: #f4f3ee;
+  --field: #1c1c1c;
+  --field-hover: #2a2a2a;
+  --glass-bg: #1a1a1a;
+  --glass-edge: #f4f3ee;
+  --hard: var(--accent);
+  color-scheme: dark;
+}
+[data-style='bold'] .glass::before { padding: 2px; }
+[data-style='bold'] :is(.btn, .input, .select, .textarea, .segmented, .chip, .link-box, .code-pill, .icon-tile, .file-row, .share-file, .choice, .toggle-row, .media-slot) {
+  box-shadow: 0 0 0 2px var(--line-2) inset;
+}
+[data-style='bold'] .btn--ghost { box-shadow: none; }
+[data-style='bold'] .btn--primary { box-shadow: 0 0 0 2px var(--line-2) inset, 3px 3px 0 var(--line-2); }
+[data-style='bold'] .btn--primary:hover { transform: translate(-1px, -1px); box-shadow: 0 0 0 2px var(--line-2) inset, 4px 4px 0 var(--line-2); }
+[data-style='bold'] .btn--primary:active { transform: translate(2px, 2px); box-shadow: 0 0 0 2px var(--line-2) inset, 1px 1px 0 var(--line-2); }
+[data-style='bold'] .btn--primary:disabled { transform: none; box-shadow: 0 0 0 2px var(--line) inset; }
+[data-style='bold'] :is(.input, .select, .textarea):focus { box-shadow: 0 0 0 2px var(--line-2) inset, 3px 3px 0 var(--accent); }
+[data-style='bold'] .dropzone::after { border: 2px dashed var(--line); }
+[data-style='bold'] .dropzone.is-over::after { border-color: var(--line-2); }
+[data-style='bold'] .dropzone__icon { box-shadow: 0 0 0 2px var(--line-2) inset, 3px 3px 0 var(--hard); border-radius: var(--r-md); }
+[data-style='bold'] :is(.success-badge, .lock-icon) { border-radius: var(--r-md); box-shadow: 0 0 0 2px var(--line-2) inset, 4px 4px 0 var(--hard); }
+[data-style='bold'] :is(.display, .h1, .h2, .stat__value) { letter-spacing: -0.035em; font-weight: 700; }
+[data-style='bold'] .eyebrow::before { border-radius: 0; background: var(--ink); }
+[data-style='bold'] .feature:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--hard); }
+[data-style='bold'] .switch span, [data-style='bold'] .switch span::after { border-radius: var(--r-sm); }
+[data-style='bold'] .switch span { box-shadow: 0 0 0 2px var(--line-2) inset; }

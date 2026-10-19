@@ -42,7 +42,7 @@ router.get('/api/config', (req, res) => {
 
 // First-run setup: creates the administrator account. Only works while no user exists.
 router.post('/api/setup', setupLimiter, async (req, res) => {
-  const { username, email, password, siteName, registrationMode, guestUploads, language } = req.body || {};
+  const { username, email, password, siteName, registrationMode, guestUploads, language, designStyle } = req.body || {};
   validateCredentials({ username, password, email });
   const hash = await hashPassword(password);
 
@@ -58,6 +58,7 @@ router.post('/api/setup', setupLimiter, async (req, res) => {
   if (registrationMode) initial.registrationMode = registrationMode;
   if (typeof guestUploads === 'boolean') initial.guestUploads = guestUploads;
   if (language) initial.defaultLanguage = language;
+  if (designStyle) initial.designStyle = designStyle;
   try {
     settings.update(initial);
   } catch (err) {

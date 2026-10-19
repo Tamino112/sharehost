@@ -162,12 +162,14 @@ async function createShare(req, res) {
   for (const f of files) crcs.push(await crc32File(f.path));
   const id = randomId(9);
   const manageToken = guest ? randomId(24) : null;
+  // "Download as ZIP" only means something for more than one file.
+  const zipFlag = body.zipOnly === '1' && files.length > 1 ? 1 : 0;
   const t = now();
 
   transaction(() => {
-    db.prepare(`INSERT INTO shares (id, owner_id, title, message, password_hash, expires_at, max_downloads, manage_token_hash, uploader_ip, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(id, req.user?.id ?? null, title, message, passwordHash, expiresAt, maxDownloads, manageToken && sha256(manageToken), req.ip || null, t);
+    db.prepare(`INSERT INTO shares (id, owner_id, title, message, password_hash, expires_at, max_downloads, manage_token_hash, uploader_ip, zip_only, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(id, req.user?.id ?? null, title, message, passwordHash, expiresAt, maxDownloads, manageToken && sha256(manageToken), req.ip || null, zipFlag, t);
     const insert = db.prepare('INSERT INTO files (id, share_id, name, size, mime, crc32, storage_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
     files.forEach((f, i) => insert.run(randomId(9), id, names[i], f.size, mimeFor(f.originalname), crcs[i], f.filename, t));
   });
@@ -219,6 +221,9 @@ router.delete('/api/shares/:id', async (req, res) => {
 // ---------------------------------------------------------------------------
 // Public share access
 
+/** ZIP-only shares hand out a single archive; too large for a ZIP falls back to single files. */
+const zipOnly = (share, files) => !!share.zip_only && files.length > 1 && zipPlan(files).supported;
+
 const isGone = s => (s.expires_at && s.expires_at < now()) || (s.max_downloads && s.download_count >= s.max_downloads);
 
 function loadShare(req) {
@@ -237,6 +242,7 @@ router.get('/api/s/:id', (req, res) => {
   db.prepare('UPDATE shares SET view_count = view_count + 1 WHERE id = ?').run(share.id);
   const files = db.prepare('SELECT * FROM files WHERE share_id = ? ORDER BY rowid').all(share.id);
   const owner = share.owner_id ? db.prepare('SELECT username FROM users WHERE id = ?').get(share.owner_id)?.username : null;
+  const zip = files.length > 1 && zipPlan(files).supported;
   res.json({
     id: share.id,
     title: share.title,
@@ -249,7 +255,8 @@ router.get('/api/s/:id', (req, res) => {
     maxDownloads: share.max_downloads,
     downloadCount: share.download_count,
     totalSize: files.reduce((sum, f) => sum + f.size, 0),
-    zip: files.length > 1 && zipPlan(files).supported,
+    zip,
+    zipOnly: zipOnly(share, files),
     canDelete: !!(req.user && (req.user.role === 'admin' || req.user.id === share.owner_id)),
     files: files.map(f => ({
       id: f.id,
@@ -303,6 +310,10 @@ router.get('/d/:id/:fileId', downloadGuard(async (req, res, share) => {
   const file = db.prepare('SELECT * FROM files WHERE id = ? AND share_id = ?').get(req.params.fileId, share.id);
   if (!file) throw new HttpError(404, 'File not found.');
   const preview = req.query.preview === '1' && isInlineSafe(file.mime) && !share.max_downloads;
+
+  if (!preview && share.zip_only && zipOnly(share, db.prepare('SELECT * FROM files WHERE share_id = ?').all(share.id))) {
+    throw new HttpError(403, 'This share can only be downloaded as a ZIP.', 'zip_only');
+  }
 
   if (preview) {
     res.type(file.mime);
