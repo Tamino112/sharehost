@@ -32,7 +32,7 @@ export function clientConfig(req) {
       allowed: !guest || s.guestUploads,
       maxFileSizeMB: guest ? s.guestMaxFileSizeMB : s.maxFileSizeMB,
       maxFiles: guest ? s.guestMaxFiles : s.maxFilesPerShare,
-      defaultExpiryHours: guest ? Math.min(s.defaultExpiryHours, s.guestMaxExpiryHours) : s.defaultExpiryHours,
+      defaultExpiryHours: settings.defaultExpiryHours(guest),
       maxExpiryHours: guest ? s.guestMaxExpiryHours : s.maxExpiryHours,
       allowNeverExpire: !guest && s.allowNeverExpire,
       allowPassword: s.allowPasswordShares,
@@ -115,7 +115,7 @@ router.post('/api/auth/register', loginLimiter, async (req, res) => {
     let invite = null;
     if (mode === 'invite') {
       invite = db.prepare('SELECT * FROM invites WHERE code = ?').get(String(inviteCode || '').trim());
-      if (!invite || invite.used_by || (invite.expires_at && invite.expires_at < now())) {
+      if (!invite || invite.used_at !== null || invite.used_by !== null || (invite.expires_at && invite.expires_at < now())) {
         throw new HttpError(400, 'This invite code is invalid or has already been used.', 'invalid_invite');
       }
     }

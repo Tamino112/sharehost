@@ -86,6 +86,12 @@ export function all() {
   return out;
 }
 
+/** Older instances may already have a default above their configured maximum. */
+export function defaultExpiryHours(guest = false) {
+  const max = get(guest ? 'guestMaxExpiryHours' : 'maxExpiryHours');
+  return max > 0 ? Math.min(get('defaultExpiryHours'), max) : get('defaultExpiryHours');
+}
+
 export function publicSettings() {
   const out = {};
   for (const [key, def] of Object.entries(SCHEMA)) if (def.public) out[key] = get(key);

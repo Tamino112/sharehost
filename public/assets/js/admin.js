@@ -550,11 +550,12 @@ async function renderInvites(panel) {
   if (!invites.length) $('.table-wrap', listPanel).replaceWith(emptyState('admin.noInvites', 'admin.noInvitesText', 'ticket'));
   invites.forEach((inv, i) => {
     const expired = inv.expiresAt && inv.expiresAt < Date.now();
-    const status = inv.usedBy ? `<span class="chip">${icon('check')}${esc(t('admin.usedBy', { name: inv.usedBy }))}</span>`
+    const used = inv.used || inv.usedAt != null || !!inv.usedBy;
+    const status = used ? `<span class="chip">${icon('check')}${esc(inv.usedBy ? t('admin.usedBy', { name: inv.usedBy }) : t('admin.inviteUsed'))}</span>`
       : expired ? `<span class="chip chip--danger">${esc(t('dash.expired'))}</span>`
         : `<span class="chip chip--accent" title="${esc(formatDate(inv.expiresAt))}">${esc(inv.expiresAt ? t('share.expires', { when: relativeTime(inv.expiresAt) }) : t('admin.open'))}</span>`;
     const tr = h(`<tr style="--i:${i}">
-      <td><span class="code-pill">${esc(inv.code)}${!inv.usedBy && !expired ? `<button class="btn btn--ghost btn--icon btn--sm" data-act="copy" aria-label="${esc(t('common.copy'))}" style="width:28px;height:28px">${icon('copy')}</button>` : ''}</span></td>
+      <td><span class="code-pill">${esc(inv.code)}${!used && !expired ? `<button class="btn btn--ghost btn--icon btn--sm" data-act="copy" aria-label="${esc(t('common.copy'))}" style="width:28px;height:28px">${icon('copy')}</button>` : ''}</span></td>
       <td class="small muted">${esc(inv.note || '—')}</td>
       <td>${status}</td>
       <td class="small muted">${esc(formatDate(inv.createdAt, { dateStyle: 'medium' }))}</td>

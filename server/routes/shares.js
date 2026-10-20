@@ -8,12 +8,14 @@ import multer from 'multer';
 import { db, now, transaction } from '../db.js';
 import * as settings from '../settings.js';
 import { config } from '../config.js';
+import { reserveUpload } from '../uploads.js';
+import { cleanName, folderPath } from '../filenames.js';
 import {
   HttpError, hashPassword, verifyPassword, requireUser, rateLimit, randomId, sha256,
   shareUnlockToken, isShareUnlocked, cookieOptions,
 } from '../auth.js';
 import {
-  extOf, mimeFor, isInlineSafe, filePath, removeFiles, deleteShares, zipPlan, streamZip,
+  extOf, mimeFor, isInlineSafe, filePath, removeFiles, deleteShares, zipPlan, streamZip, retainFiles,
 } from '../storage.js';
 
 const router = Router();
@@ -24,33 +26,36 @@ const MB = 1048576;
  * written, so large uploads don't have to be read back from disk afterwards.
  */
 const storage = {
-  _handleFile(_req, file, cb) {
+  _handleFile(req, file, cb) {
     const filename = randomId(18);
     const dest = path.join(config.uploadDir, filename);
+    const upload = req.uploadReservation;
+    upload.files.add(filename);
+    upload.releases.add(retainFiles([filename]));
     let crc = 0;
     let size = 0;
     const hash = new Transform({
       transform(chunk, _enc, done) {
-        crc = zlib.crc32(chunk, crc);
-        size += chunk.length;
-        done(null, chunk);
+        try {
+          upload.add(chunk.length);
+          crc = zlib.crc32(chunk, crc);
+          size += chunk.length;
+          done(null, chunk);
+        } catch (err) { done(err); }
       },
     });
-    pipeline(file.stream, hash, fs.createWriteStream(dest))
+    const write = pipeline(file.stream, hash, fs.createWriteStream(dest), { signal: upload.controller.signal })
       .then(() => cb(null, { destination: config.uploadDir, filename, path: dest, size, crc32: crc >>> 0 }))
-      .catch(err => fs.rm(dest, { force: true }, () => cb(err)));
+      .catch(async err => {
+        await fs.promises.rm(dest, { force: true }).catch(e => console.error('Upload cleanup failed:', e));
+        cb(err);
+      });
+    upload.writes.add(write);
   },
   _removeFile(_req, file, cb) {
     fs.rm(file.path, { force: true }, cb);
   },
 };
-
-function cleanName(name) {
-  const base = path.basename(String(name || 'file').replace(/\\/g, '/'));
-  // Windows drops trailing dots and spaces, so "evil.exe." must not slip past the extension check.
-  const cleaned = base.replace(/[\u0000-\u001f\u007f]/g, '').replace(/[.\s]+$/, '').trim().slice(0, 255);
-  return cleaned || 'file';
-}
 
 /** Relative paths sent with a folder upload, one per file in upload order. */
 function relPaths(body) {
@@ -60,19 +65,6 @@ function relPaths(body) {
   } catch {
     return [];
   }
-}
-
-/**
- * Builds the stored name for a file from a folder upload: the client's relative path, reduced to
- * safe folder segments (no "..", no absolute paths, no control characters), plus the real file name.
- */
-function folderPath(rel, fileName) {
-  if (typeof rel !== 'string') return fileName;
-  const dirs = rel.replace(/\\/g, '/').split('/').slice(0, -1)
-    .map(s => s.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 120))
-    .filter(s => s && s !== '.' && s !== '..')
-    .slice(0, 24);
-  return [...dirs, fileName].join('/');
 }
 
 function fileFilter(_req, file, cb) {
@@ -117,6 +109,14 @@ router.post('/api/shares', uploadLimiter, (req, res, next) => {
     return next(new HttpError(413, 'Guest uploads are full right now. Please try again later.', 'guest_quota'));
   }
 
+  let reservation;
+  try { reservation = reserveUpload(req.user); } catch (err) { return next(err); }
+  req.uploadReservation = reservation;
+  const abort = () => reservation.controller.abort();
+  const onClose = () => { if (!res.writableFinished) abort(); };
+  req.once('aborted', abort);
+  res.once('close', onClose);
+
   const maxFiles = guest ? settings.get('guestMaxFiles') : settings.get('maxFilesPerShare');
   const maxMB = guest ? settings.get('guestMaxFileSizeMB') : settings.get('maxFileSizeMB');
   const upload = multer({
@@ -127,22 +127,38 @@ router.post('/api/shares', uploadLimiter, (req, res, next) => {
     limits: { fileSize: maxMB * MB, files: maxFiles, fields: 20, fieldSize: 2 * MB },
   }).array('files', maxFiles);
 
-  upload(req, res, err => {
-    if (err) {
+  upload(req, res, async err => {
+    let committed = false;
+    let failure;
+    try {
       if (err instanceof multer.MulterError) {
         const messages = {
           LIMIT_FILE_SIZE: `A file is larger than the ${maxMB} MB limit.`,
           LIMIT_FILE_COUNT: `You can upload at most ${maxFiles} files at once.`,
           LIMIT_UNEXPECTED_FILE: `You can upload at most ${maxFiles} files at once.`,
         };
-        return next(new HttpError(413, messages[err.code] || err.message, err.code.toLowerCase()));
+        throw new HttpError(413, messages[err.code] || err.message, err.code.toLowerCase());
       }
-      return next(err);
+      if (err) throw err;
+      await createShare(req, res);
+      committed = true;
+    } catch (e) {
+      // Stop writers before removing files or making their reserved bytes available again.
+      abort();
+      failure = e;
+    } finally {
+      await Promise.allSettled(reservation.writes);
+      try {
+        if (!committed) await removeFiles([...reservation.files]);
+      } catch (e) { console.error('Upload cleanup failed:', e); }
+      finally {
+        await Promise.allSettled([...reservation.releases].map(release => release()));
+        reservation.release();
+        req.off('aborted', abort);
+        res.off('close', onClose);
+      }
     }
-    createShare(req, res).catch(async e => {
-      await removeFiles((req.files || []).map(f => f.filename));
-      next(e);
-    });
+    if (failure && !req.aborted && !res.destroyed) next(failure);
   });
 });
 
@@ -167,7 +183,7 @@ async function createShare(req, res) {
     passwordHash = await hashPassword(String(body.password));
   }
 
-  const defaultHours = guest ? Math.min(settings.get('defaultExpiryHours'), settings.get('guestMaxExpiryHours')) : settings.get('defaultExpiryHours');
+  const defaultHours = settings.defaultExpiryHours(guest);
   const hours = Number(body.expiresInHours ?? defaultHours);
   let expiresAt;
   if (hours === 0) {
@@ -198,6 +214,9 @@ async function createShare(req, res) {
   const t = now();
 
   transaction(() => {
+    req.uploadReservation.controller.signal.throwIfAborted();
+    // Quota/account changes can also happen while the share password is being hashed.
+    req.uploadReservation.add(0);
     db.prepare(`INSERT INTO shares (id, owner_id, title, message, password_hash, expires_at, max_downloads, manage_token_hash, uploader_ip, zip_only, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(id, req.user?.id ?? null, title, message, passwordHash, expiresAt, maxDownloads, manageToken && sha256(manageToken), req.ip || null, zipFlag, t);
@@ -325,14 +344,18 @@ function countDownload(share, fileId) {
 /** Download routes are opened directly by the browser, so errors redirect back to the share page. */
 function downloadGuard(handler) {
   return async (req, res, next) => {
+    let release;
     try {
       const share = loadShare(req);
       if (!isShareUnlocked(req, share)) return res.redirect(303, `/s/${encodeURIComponent(share.id)}`);
+      release = retainFiles(db.prepare('SELECT storage_name FROM files WHERE share_id = ?').all(share.id).map(f => f.storage_name));
       res.set('Content-Security-Policy', "default-src 'none'; media-src 'self'; img-src 'self'; sandbox");
       await handler(req, res, share);
     } catch (err) {
       if (err instanceof HttpError && !res.headersSent) return res.redirect(303, `/s/${encodeURIComponent(req.params.id)}`);
       next(err);
+    } finally {
+      if (release) await release().catch(err => console.error('Download cleanup failed:', err));
     }
   };
 }
@@ -360,8 +383,12 @@ router.get('/d/:id/:fileId', downloadGuard(async (req, res, share) => {
     }
     res.attachment(path.posix.basename(file.name));
   }
-  res.sendFile(filePath(file.storage_name), { cacheControl: false, acceptRanges: !limited, headers: { 'Cache-Control': 'private, no-store' } }, err => {
-    if (err && !res.headersSent) res.status(err.status || 500).end();
+  await new Promise(resolve => {
+    res.sendFile(filePath(file.storage_name), { cacheControl: false, acceptRanges: !limited, headers: { 'Cache-Control': 'private, no-store' } }, err => {
+      if (err && !res.headersSent) res.status(err.status || 500).end();
+      else if (err) res.destroy();
+      resolve();
+    });
   });
 }));
 
