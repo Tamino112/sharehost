@@ -1,9 +1,10 @@
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
-import { pipeline } from 'node:stream/promises';
-import { db, now } from './db.js';
+import { once } from 'node:events';
+import { db, now, transaction } from './db.js';
 import { config } from './config.js';
+import { cleanName, folderPath } from './filenames.js';
 
 const MIME = {
   png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', avif: 'image/avif',
@@ -33,24 +34,54 @@ export async function removeFiles(storageNames) {
   await Promise.all(storageNames.map(n => fsp.rm(filePath(n), { force: true })));
 }
 
+const activeFiles = new Map();
+const pendingDeletion = new Set();
+
+/** Keep files available until every active reader/writer has finished. */
+export function retainFiles(storageNames) {
+  const names = [...new Set(storageNames)];
+  for (const name of names) activeFiles.set(name, (activeFiles.get(name) || 0) + 1);
+  let released = false;
+  return async () => {
+    if (released) return;
+    released = true;
+    const removable = [];
+    for (const name of names) {
+      const count = activeFiles.get(name) - 1;
+      if (count) activeFiles.set(name, count);
+      else {
+        activeFiles.delete(name);
+        if (pendingDeletion.has(name)) removable.push(name);
+      }
+    }
+    await removeFiles(removable);
+    for (const name of removable) pendingDeletion.delete(name);
+  };
+}
+
+/** Rows can disappear immediately; active downloads retain their backing files. */
+export async function retireFiles(storageNames) {
+  const removable = [];
+  for (const name of storageNames) {
+    if (activeFiles.has(name)) pendingDeletion.add(name);
+    else removable.push(name);
+  }
+  await removeFiles(removable);
+}
+
 /** Deletes shares (rows + files on disk). */
 export async function deleteShares(shareIds) {
   if (!shareIds.length) return 0;
   const names = [];
   const getFiles = db.prepare('SELECT storage_name FROM files WHERE share_id = ?');
   const del = db.prepare('DELETE FROM shares WHERE id = ?');
-  db.exec('BEGIN');
-  try {
+  transaction(() => {
     for (const id of shareIds) {
       for (const f of getFiles.all(id)) names.push(f.storage_name);
       del.run(id);
     }
-    db.exec('COMMIT');
-  } catch (err) {
-    db.exec('ROLLBACK');
-    throw err;
-  }
-  await removeFiles(names);
+  });
+  await retireFiles(names);
   return shareIds.length;
 }
 
@@ -70,11 +101,13 @@ export async function cleanup() {
   const known = new Set(db.prepare('SELECT storage_name FROM files').all().map(r => r.storage_name));
   let orphans = 0;
   for (const name of await fsp.readdir(config.uploadDir)) {
-    if (known.has(name)) continue;
+    if (known.has(name) || activeFiles.has(name)) continue;
     const full = path.join(config.uploadDir, name);
     const stat = await fsp.stat(full).catch(() => null);
-    if (stat && t - stat.mtimeMs > 3600000) {
+    if (stat && t - stat.mtimeMs > 3600000 && !activeFiles.has(name)
+        && !db.prepare('SELECT 1 FROM files WHERE storage_name = ?').get(name)) {
       await fsp.rm(full, { force: true, recursive: true });
+      pendingDeletion.delete(name);
       orphans++;
     }
   }
@@ -106,7 +139,7 @@ function dosDateTime(ms) {
 function uniqueNames(files) {
   const used = new Set();
   return files.map(f => {
-    const base = f.name.replace(/\\/g, '_'); // keep "/" so folder uploads unpack into folders
+    const base = folderPath(f.name, cleanName(f.name));
     const ext = path.posix.extname(base);
     const stem = base.slice(0, base.length - ext.length);
     let name = base;
@@ -130,6 +163,22 @@ export function zipPlan(files) {
 }
 
 export async function streamZip(plan, res) {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  res.once('close', abort);
+  if (res.destroyed) abort();
+  try {
+    await streamZipEntries(plan, res, controller.signal);
+  } finally {
+    res.off('close', abort);
+  }
+}
+
+async function streamZipEntries(plan, res, signal) {
+  const write = async chunk => {
+    signal.throwIfAborted();
+    if (!res.write(chunk)) await once(res, 'drain', { signal });
+  };
   for (const e of plan.entries) {
     const h = Buffer.alloc(30);
     h.writeUInt32LE(0x04034b50, 0);
@@ -143,8 +192,10 @@ export async function streamZip(plan, res) {
     h.writeUInt32LE(e.file.size, 22);
     h.writeUInt16LE(e.name.length, 26);
     h.writeUInt16LE(0, 28);
-    if (!res.write(Buffer.concat([h, e.name]))) await new Promise(r => res.once('drain', r));
-    await pipeline(fs.createReadStream(filePath(e.file.storage_name)), res, { end: false });
+    await write(Buffer.concat([h, e.name]));
+    // A single response listener handles cancellation for the whole archive. Repeated pipelines
+    // would leave response listeners behind for every entry in a large folder upload.
+    for await (const chunk of fs.createReadStream(filePath(e.file.storage_name), { signal })) await write(chunk);
   }
   const parts = [];
   for (const e of plan.entries) {
@@ -171,5 +222,6 @@ export async function streamZip(plan, res) {
   end.writeUInt32LE(plan.cdSize, 12);
   end.writeUInt32LE(plan.cdOffset, 16);
   parts.push(end);
+  signal.throwIfAborted();
   res.end(Buffer.concat(parts));
 }

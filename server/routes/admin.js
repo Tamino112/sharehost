@@ -7,7 +7,7 @@ import { db, now, transaction } from '../db.js';
 import * as settings from '../settings.js';
 import { config } from '../config.js';
 import { HttpError, requireAdmin, hashPassword, validateCredentials, validateEmail, randomId } from '../auth.js';
-import { cleanup, deleteShares, diskInfo } from '../storage.js';
+import { cleanup, deleteShares, diskInfo, retireFiles } from '../storage.js';
 import { serializeShare, SHARE_LIST_SQL } from './shares.js';
 
 const router = Router();
@@ -179,16 +179,17 @@ router.post('/api/admin/users', async (req, res) => {
 
 const otherActiveAdmins = id => db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'admin' AND disabled = 0 AND id != ?").get(id).n;
 
+function assertActiveAdmin(id) {
+  const user = db.prepare('SELECT role, disabled FROM users WHERE id = ?').get(id);
+  if (!user || user.disabled || user.role !== 'admin') throw new HttpError(403, 'Administrator access required.', 'forbidden');
+}
+
 router.patch('/api/admin/users/:id', async (req, res) => {
   const id = Number(req.params.id);
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
   if (!user) throw new HttpError(404, 'User not found.');
   const b = req.body || {};
   if (b.disabled !== undefined && typeof b.disabled !== 'boolean') throw new HttpError(400, 'disabled must be true or false.');
-  const losesAdmin = (b.role && b.role !== 'admin') || b.disabled === true;
-  if (user.role === 'admin' && losesAdmin && otherActiveAdmins(id) === 0) {
-    throw new HttpError(400, 'There must always be at least one active administrator.', 'last_admin');
-  }
   const updates = {};
   if (b.role !== undefined) {
     if (!['admin', 'user'].includes(b.role)) throw new HttpError(400, 'Invalid role.');
@@ -205,22 +206,37 @@ router.patch('/api/admin/users/:id', async (req, res) => {
     updates.password_hash = await hashPassword(b.password);
   }
   const keys = Object.keys(updates);
-  if (keys.length) {
-    db.prepare(`UPDATE users SET ${keys.map(k => `${k} = ?`).join(', ')} WHERE id = ?`).run(...keys.map(k => updates[k]), id);
-  }
-  if (updates.disabled || updates.password_hash) db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id);
+  // Hashing yields to other requests. Re-read both users and enforce the invariant at commit time.
+  transaction(() => {
+    assertActiveAdmin(req.user.id);
+    const current = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+    if (!current) throw new HttpError(404, 'User not found.');
+    const losesAdmin = (updates.role ?? current.role) !== 'admin' || (updates.disabled ?? current.disabled) !== 0;
+    if (current.role === 'admin' && !current.disabled && losesAdmin && otherActiveAdmins(id) === 0) {
+      throw new HttpError(400, 'There must always be at least one active administrator.', 'last_admin');
+    }
+    if (keys.length) {
+      db.prepare(`UPDATE users SET ${keys.map(k => `${k} = ?`).join(', ')} WHERE id = ?`).run(...keys.map(k => updates[k]), id);
+    }
+    if (updates.disabled || updates.password_hash) db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id);
+  });
   res.json({ user: serializeUser(db.prepare(`${USER_SQL} WHERE u.id = ?`).get(id)) });
 });
 
 router.delete('/api/admin/users/:id', async (req, res) => {
   const id = Number(req.params.id);
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
-  if (!user) throw new HttpError(404, 'User not found.');
   if (id === req.user.id) throw new HttpError(400, 'You cannot delete your own account.');
-  if (user.role === 'admin' && otherActiveAdmins(id) === 0) throw new HttpError(400, 'There must always be at least one active administrator.', 'last_admin');
-  const shareIds = db.prepare('SELECT id FROM shares WHERE owner_id = ?').all(id).map(r => r.id);
-  await deleteShares(shareIds);
-  db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  const names = transaction(() => {
+    assertActiveAdmin(req.user.id);
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+    if (!user) throw new HttpError(404, 'User not found.');
+    if (user.role === 'admin' && !user.disabled && otherActiveAdmins(id) === 0) throw new HttpError(400, 'There must always be at least one active administrator.', 'last_admin');
+    const files = db.prepare(`SELECT f.storage_name FROM files f JOIN shares s ON s.id = f.share_id WHERE s.owner_id = ?`).all(id);
+    // Foreign keys remove shares, files and sessions in the same transaction as the user.
+    db.prepare('DELETE FROM users WHERE id = ?').run(id);
+    return files.map(f => f.storage_name);
+  });
+  await retireFiles(names);
   res.json({ ok: true });
 });
 
@@ -248,7 +264,8 @@ router.get('/api/admin/invites', (_req, res) => {
   const rows = db.prepare(`SELECT i.*, u.username AS used_by_name FROM invites i LEFT JOIN users u ON u.id = i.used_by ORDER BY i.created_at DESC`).all();
   res.json({
     invites: rows.map(i => ({
-      code: i.code, note: i.note, createdAt: i.created_at, expiresAt: i.expires_at, usedBy: i.used_by_name, usedAt: i.used_at,
+      code: i.code, note: i.note, createdAt: i.created_at, expiresAt: i.expires_at,
+      used: i.used_at !== null || i.used_by !== null, usedBy: i.used_by_name, usedAt: i.used_at,
     })),
   });
 });

@@ -6,10 +6,11 @@
   "type": "module",
   "main": "server/index.js",
   "engines": {
-    "node": ">=22.5"
+    "node": ">=22.13"
   },
   "scripts": {
     "start": "node --no-warnings=ExperimentalWarning server/index.js",
+    "test": "node --no-warnings=ExperimentalWarning --test test/regression.test.js",
     "dev": "node --no-warnings=ExperimentalWarning --watch-path=server --watch-path=public server/index.js"
   },
   "dependencies": {

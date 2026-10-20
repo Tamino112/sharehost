@@ -44,7 +44,7 @@ All data (database, uploads, branding) lives in the `sharehost-data` volume.
 
 ### Without Docker
 
-Requires **Node.js 22.5 or newer** (uses the built-in `node:sqlite`).
+Requires **Node.js 22.13 or newer** (uses the built-in `node:sqlite` without an extra experimental flag).
 
 ```bash
 git clone https://github.com/tamino112/sharehost.git
@@ -57,7 +57,16 @@ Data is stored in `./data` by default.
 
 ## Configuration
 
-Almost everything is configured in the admin panel. A few things are set through environment variables:
+Almost everything is configured in the admin panel.
+
+Run one ShareHost process per data directory. Active upload reservations and download protection
+are tracked by that process; do not share a data directory between replicas or cluster workers.
+Uploads are limited to 16 simultaneous requests per instance and 4 per user (or the shared guest pool).
+Storage quotas include file bytes reserved by uploads in progress. Deleting a share blocks new
+downloads immediately; its files stay on disk until any downloads already in progress finish.
+The effective default expiry is capped at the maximum expiry for the uploader.
+
+A few things are set through environment variables:
 
 | Variable | Default | Description |
 |---|---|---|
@@ -128,6 +137,7 @@ Settings alone can be exported/imported as JSON in *Admin → Maintenance*.
 
 ```bash
 npm install
+npm test         # isolated HTTP regression tests; does not use ./data
 npm run dev      # restarts on file changes
 ```
 

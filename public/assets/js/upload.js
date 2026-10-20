@@ -63,7 +63,7 @@ const expirySelect = $('#opt-expiry');
 const presets = [1, 6, 24, 72, 168, 336, 720, 2160, 4320, 8760];
 let choices = presets.filter(hrs => up.maxExpiryHours === 0 || hrs <= up.maxExpiryHours);
 if (up.maxExpiryHours > 0 && !choices.includes(up.maxExpiryHours)) choices.push(up.maxExpiryHours);
-if (!choices.includes(up.defaultExpiryHours)) choices.push(up.defaultExpiryHours);
+if (!choices.includes(up.defaultExpiryHours) && (up.maxExpiryHours === 0 || up.defaultExpiryHours <= up.maxExpiryHours)) choices.push(up.defaultExpiryHours);
 choices = [...new Set(choices)].sort((a, b) => a - b);
 if (up.allowNeverExpire) choices.push(0);
 expirySelect.innerHTML = choices.map(hrs => `<option value="${hrs}" ${hrs === up.defaultExpiryHours ? 'selected' : ''}>${esc(formatHours(hrs))}</option>`).join('');
